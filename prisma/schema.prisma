@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  externalId     String
+  brand          String
+  title          String
+  handle         String
+  productUrl     String
+  category       String
+  colorName      String
+  colorBucket    String
+  price          Float
+  compareAtPrice Float?
+  onSale         Boolean  @default(false)
+  imageUrl       String
+  sizes          String   @default("[]")
+  inStock        Boolean  @default(true)
+  isNew          Boolean  @default(false)
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([brand, externalId, colorName])
+  @@index([brand])
+  @@index([category])
+  @@index([colorBucket])
+  @@index([onSale])
+  @@index([isNew])
+}
+
+model ScrapeLog {
+  id            String    @id @default(cuid())
+  brand         String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  status        String
+  itemsFound    Int?
+  itemsUpserted Int?
+  errorMessage  String?
+}
