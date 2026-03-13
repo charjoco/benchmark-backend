@@ -1,11 +1,11 @@
 import type { AppCategory } from "@/types";
 import type { BrandConfig } from "@/lib/config/brands";
 
-// Check zips before hoodies — a zip hoodie should be "zips" not "hoodies"
+// longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
 const PRIORITY_ORDER: AppCategory[] = [
   "zips",
-  "shirts",
   "longsleeve",
+  "shirts",
   "hoodies",
   "sweaters",
   "shorts",
@@ -15,10 +15,14 @@ const PRIORITY_ORDER: AppCategory[] = [
 export function resolveCategory(
   productType: string,
   tags: string[],
-  config: BrandConfig
+  config: BrandConfig,
+  title = ""
 ): AppCategory | null {
-  const normalizedType = productType.toLowerCase().trim();
+  // Normalize curly apostrophes (U+2019 → U+0027) for consistent matching (e.g. BYLT's product types)
+  const normalizeStr = (s: string) => s.toLowerCase().trim().replace(/\u2019/g, "'");
+  const normalizedType = normalizeStr(productType);
   const normalizedTags = tags.map((t) => t.toLowerCase().trim());
+  const normalizedTitle = title.toLowerCase();
 
   for (const category of PRIORITY_ORDER) {
     const mapping = config.categoryMappings[category];
@@ -32,7 +36,12 @@ export function resolveCategory(
       normalizedTags.some((t) => t.includes(tag.toLowerCase()))
     );
 
-    if (typeMatch || tagMatch) return category;
+    // titleContains acts as a required filter: if defined, the product title must match
+    const titleRequired = mapping.titleContains && mapping.titleContains.length > 0;
+    const titleOk = !titleRequired ||
+      mapping.titleContains!.some((kw) => normalizedTitle.includes(kw.toLowerCase()));
+
+    if ((typeMatch || tagMatch) && titleOk) return category;
   }
 
   return null;

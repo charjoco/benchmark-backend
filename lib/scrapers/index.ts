@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { BRANDS } from "@/lib/config/brands";
 import { scrapeShopifyBrand } from "./shopify";
 import { scrapeLululemon } from "./lululemon";
-import { scrapeVuori } from "./vuori";
 
 async function runWithLog(
   brand: string,
@@ -42,14 +41,13 @@ export async function runAllScrapers(): Promise<void> {
   console.log("[Scraper] Starting full scrape...");
   const startTime = Date.now();
 
-  // Shopify brands
+  // Shopify brands (includes Vuori now)
   for (const brand of BRANDS.filter((b) => b.scraperType === "shopify")) {
     await runWithLog(brand.brandKey, () => scrapeShopifyBrand(brand));
   }
 
   // Playwright brands
   await runWithLog("lululemon", scrapeLululemon);
-  await runWithLog("vuori", scrapeVuori);
 
   // Mark products isNew = false if firstSeenAt > 14 days ago
   const fourteenDaysAgo = new Date();
@@ -74,20 +72,13 @@ export async function runAllScrapers(): Promise<void> {
 export async function runSingleBrand(brandKey: string): Promise<void> {
   const brand = BRANDS.find((b) => b.brandKey === brandKey);
 
-  if (brand) {
+  if (!brand) throw new Error(`Unknown brand: ${brandKey}`);
+
+  if (brand.scraperType === "shopify") {
     await runWithLog(brand.brandKey, () => scrapeShopifyBrand(brand));
-    return;
-  }
-
-  if (brandKey === "lululemon") {
+  } else if (brand.brandKey === "lululemon") {
     await runWithLog("lululemon", scrapeLululemon);
-    return;
+  } else {
+    throw new Error(`No scraper implemented for playwright brand: ${brandKey}`);
   }
-
-  if (brandKey === "vuori") {
-    await runWithLog("vuori", scrapeVuori);
-    return;
-  }
-
-  throw new Error(`Unknown brand: ${brandKey}`);
 }

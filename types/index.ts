@@ -28,6 +28,19 @@ export interface SizeVariant {
   available: boolean;
 }
 
+/** A single color variant of a product */
+export interface Colorway {
+  colorName: string;
+  colorBucket: string;
+  imageUrl: string;
+  price: number;
+  compareAtPrice: number | null;
+  onSale: boolean;
+  sizes: SizeVariant[];
+  /** Per-colorway URL if it differs from the product's base URL */
+  productUrl?: string;
+}
+
 export interface ProductRow {
   id: string;
   externalId: string;
@@ -36,13 +49,17 @@ export interface ProductRow {
   handle: string;
   productUrl: string;
   category: string;
+  // Primary colorway (used for initial display / sort)
   colorName: string;
   colorBucket: string;
-  price: number;
+  imageUrl: string;
+  price: number;            // min price across all colorways
   compareAtPrice: number | null;
   onSale: boolean;
-  imageUrl: string;
-  sizes: SizeVariant[];
+  // All colorways
+  colorways: Colorway[];
+  colorBuckets: string;     // comma-sep list of unique color buckets
+  sizes: SizeVariant[];     // union of all sizes
   inStock: boolean;
   isNew: boolean;
   firstSeenAt: Date;
@@ -57,13 +74,7 @@ export interface UpsertableProduct {
   handle: string;
   productUrl: string;
   category: string;
-  colorName: string;
-  colorBucket: string;
-  price: number;
-  compareAtPrice: number | null;
-  onSale: boolean;
-  imageUrl: string;
-  sizes: SizeVariant[];
+  colorways: Colorway[];
   inStock: boolean;
 }
 

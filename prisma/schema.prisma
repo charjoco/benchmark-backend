@@ -15,12 +15,18 @@ model Product {
   handle         String
   productUrl     String
   category       String
+  // Primary colorway (first / cheapest) — kept as top-level for easy sorting/display
   colorName      String
   colorBucket    String
-  price          Float
+  imageUrl       String
+  price          Float    // minimum price across all colorways
   compareAtPrice Float?
   onSale         Boolean  @default(false)
-  imageUrl       String
+  // All colorways serialised as JSON (array of Colorway objects)
+  colorways      String   @default("[]")
+  // Comma-separated list of unique color buckets across all colorways — used for filtering
+  colorBuckets   String   @default("")
+  // Union of all sizes across all colorways (JSON)
   sizes          String   @default("[]")
   inStock        Boolean  @default(true)
   isNew          Boolean  @default(false)
@@ -28,7 +34,7 @@ model Product {
   lastSeenAt     DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@unique([brand, externalId, colorName])
+  @@unique([brand, externalId])
   @@index([brand])
   @@index([category])
   @@index([colorBucket])

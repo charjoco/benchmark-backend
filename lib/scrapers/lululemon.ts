@@ -1,224 +1,123 @@
-import { chromium, type BrowserContext, type Page } from "playwright";
+import { chromium } from "playwright";
 import { prisma } from "@/lib/prisma";
-import { extractColorBucket } from "@/lib/normalize/color";
-import type { UpsertableProduct, SizeVariant } from "@/types";
+import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
+import type { UpsertableProduct, Colorway, SizeVariant } from "@/types";
 
 const BRAND_KEY = "lululemon";
 const BRAND_DISPLAY = "Lululemon";
-const BASE_URL = "https://www.lululemon.com";
+const BASE_URL = "https://shop.lululemon.com";
+// Real Chrome binary — bypasses Akamai bot detection that rejects headless Chromium
+const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 interface LululemonCategory {
   slug: string;
   category: string;
 }
 
+// Each entry maps to a specific Lululemon category page (avoids cross-category duplicates)
 const CATEGORIES: LululemonCategory[] = [
-  { slug: "/en-us/c/mens-shirts", category: "shirts" },
-  { slug: "/en-us/c/mens-long-sleeve-shirts", category: "longsleeve" },
-  { slug: "/en-us/c/mens-hoodies-and-sweatshirts", category: "hoodies" },
-  { slug: "/en-us/c/mens-jackets-and-vests", category: "zips" },
-  { slug: "/en-us/c/mens-shorts", category: "shorts" },
-  { slug: "/en-us/c/mens-pants-and-tights", category: "pants" },
+  { slug: "/c/men-t-shirts/n16wkm", category: "shirts" },
+  { slug: "/c/men-polo-shirts/n1m3oa", category: "shirts" },
+  { slug: "/c/men-long-sleeve-shirts/n1f3j9zk7dc", category: "longsleeve" },
+  { slug: "/c/men-hoodies-and-sweatshirts/n1w1md", category: "hoodies" },
+  { slug: "/c/men-quarter-zip-sweatshirts/n158eizw1md", category: "zips" },
+  { slug: "/c/men-sweaters/n1xxr9", category: "sweaters" },
+  { slug: "/c/men-shorts/n1jn1c", category: "shorts" },
+  { slug: "/c/men-pants/n1u9dn", category: "pants" },
 ];
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function autoScrollAndLoadMore(page: Page): Promise<void> {
-  let previousHeight = 0;
-  let staleCount = 0;
-
-  while (staleCount < 3) {
-    const currentHeight: number = await page.evaluate(
-      () => document.body.scrollHeight
-    );
-
-    await page.evaluate(() =>
-      window.scrollTo(0, document.body.scrollHeight)
-    );
-    await delay(1500);
-
-    // Try clicking "Load More" / "Show More" button
-    try {
-      const loadMoreBtn = page.locator(
-        'button:has-text("Load More"), button:has-text("Show More"), button:has-text("load more")'
-      );
-      if ((await loadMoreBtn.count()) > 0) {
-        await loadMoreBtn.first().click();
-        await delay(2000);
-      }
-    } catch {
-      // ignore
-    }
-
-    if (currentHeight === previousHeight) {
-      staleCount++;
-    } else {
-      staleCount = 0;
-      previousHeight = currentHeight;
-    }
-  }
+interface LululemonSwatch {
+  primaryImage: string;
+  colorId: string;
+  url: string;
+  inStore: boolean | null;
 }
 
-interface ExtractedProduct {
-  title: string;
-  handle: string;
+interface LululemonSkuStyle {
+  colorId: string;
   colorName: string;
-  price: number;
-  compareAtPrice: number | null;
-  imageUrl: string;
-  productUrl: string;
-  sizes: SizeVariant[];
-  inStock: boolean;
+  size: string;
+  images: string[];
 }
 
-async function extractProductsFromPage(
-  page: Page,
-  category: string
-): Promise<ExtractedProduct[]> {
-  // Try to get product data from __NEXT_DATA__ first
-  const nextData = await page.evaluate(() => {
+interface LululemonProduct {
+  displayName: string;
+  repositoryId: string;
+  unifiedId: string;
+  pdpUrl: string;
+  listPrice: string[];
+  productOnSale: boolean;
+  productSalePrice: string[];
+  swatches: LululemonSwatch[];
+  skuStyleOrder: LululemonSkuStyle[];
+}
+
+interface CategoryPageData {
+  products: LululemonProduct[];
+  totalProductPages: number;
+  currentPage: number;
+}
+
+async function extractPageData(
+  page: import("playwright").Page
+): Promise<CategoryPageData | null> {
+  return page.evaluate(() => {
     const el = document.getElementById("__NEXT_DATA__");
-    if (!el || !el.textContent) return null;
+    if (!el) return null;
     try {
-      return JSON.parse(el.textContent);
+      const data = JSON.parse(el.textContent || "{}");
+      const queries = data.props?.pageProps?.dehydratedState?.queries || [];
+      const catQuery = queries.find(
+        (q: Record<string, unknown>) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === "CategoryPageDataQuery"
+      );
+      const page0 = catQuery?.state?.data?.pages?.[0];
+      if (!page0) return null;
+      return {
+        products: page0.products || [],
+        totalProductPages: page0.totalProductPages || 1,
+        currentPage: page0.currentPage || 1,
+      };
     } catch {
       return null;
     }
   });
-
-  if (nextData) {
-    return extractFromNextData(nextData, category);
-  }
-
-  // Fallback: DOM scraping
-  return extractFromDOM(page, category);
 }
 
-function extractFromNextData(data: unknown, _category: string): ExtractedProduct[] {
-  // Lululemon's Next.js structure varies — we look for a products array
-  // deeply nested in pageProps
-  const products: ExtractedProduct[] = [];
-
-  function findProducts(obj: unknown): void {
-    if (!obj || typeof obj !== "object") return;
-
-    if (Array.isArray(obj)) {
-      obj.forEach(findProducts);
-      return;
-    }
-
-    const o = obj as Record<string, unknown>;
-
-    // Check if this looks like a product object
-    if (
-      typeof o.displayName === "string" &&
-      typeof o.productUrl === "string" &&
-      (typeof o.highResImages !== "undefined" || typeof o.images !== "undefined")
-    ) {
-      try {
-        const images = (o.highResImages as string[]) || (o.images as string[]) || [];
-        const colorName = (o.colourGroup as string) || (o.colour as string) || "Unknown";
-        const priceVal = (o.price as { currency: string; amount: number }) || null;
-        const price = priceVal?.amount ?? 0;
-
-        const sizeList = (o.sizes as Array<{ size: string; status: string }>) || [];
-        const sizes: SizeVariant[] = sizeList.map((s) => ({
-          size: s.size,
-          available: s.status !== "out_of_stock" && s.status !== "unavailable",
-        }));
-
-        products.push({
-          title: o.displayName as string,
-          handle: (o.productUrl as string).split("/").pop() || "",
-          colorName,
-          price,
-          compareAtPrice: null,
-          imageUrl: Array.isArray(images) ? (images[0] as string) || "" : "",
-          productUrl: `${BASE_URL}${o.productUrl as string}`,
-          sizes,
-          inStock: sizes.some((s) => s.available),
-        });
-      } catch {
-        // skip malformed product
-      }
-    }
-
-    // Recurse into all values
-    for (const val of Object.values(o)) {
-      findProducts(val);
+/** Merge size lists, preferring available=true when a size appears in multiple colorways */
+function mergeSizes(colorways: Colorway[]): SizeVariant[] {
+  const sizeMap = new Map<string, boolean>();
+  for (const cw of colorways) {
+    for (const sv of cw.sizes) {
+      sizeMap.set(sv.size, (sizeMap.get(sv.size) ?? false) || sv.available);
     }
   }
-
-  findProducts(data);
-  return products;
+  return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
-async function extractFromDOM(page: Page, _category: string): Promise<ExtractedProduct[]> {
-  // DOM fallback for when __NEXT_DATA__ doesn't have what we need
-  const products: ExtractedProduct[] = [];
+async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
+  const primary = data.colorways[0];
+  if (!primary) return false;
 
-  const cards = await page
-    .locator('[data-testid="product-card"], .product-card, [class*="ProductCard"]')
-    .all();
+  const minPrice = Math.min(...data.colorways.map((c) => c.price));
+  const anyOnSale = data.colorways.some((c) => c.onSale);
+  const comparePrices = data.colorways
+    .map((c) => c.compareAtPrice)
+    .filter((p): p is number => p !== null);
+  const maxCompare = comparePrices.length > 0 ? Math.max(...comparePrices) : null;
+  const allSizes = mergeSizes(data.colorways);
 
-  for (const card of cards) {
-    try {
-      const titleEl = card.locator(
-        'h2, h3, [data-testid="product-name"], [class*="productName"]'
-      );
-      const title = (await titleEl.first().textContent())?.trim() || "";
+  const bucketSet = new Set(data.colorways.map((c) => c.colorBucket));
+  const colorBuckets = Array.from(bucketSet).join(",");
 
-      const priceEl = card.locator(
-        '[data-testid="price"], [class*="price"], .price'
-      );
-      const priceText = (await priceEl.first().textContent()) || "0";
-      const price = parseFloat(priceText.replace(/[^0-9.]/g, "")) || 0;
-
-      const linkEl = card.locator("a").first();
-      const href = (await linkEl.getAttribute("href")) || "";
-      const productUrl = href.startsWith("http") ? href : `${BASE_URL}${href}`;
-
-      const imgEl = card.locator("img").first();
-      const imageUrl = (await imgEl.getAttribute("src")) || "";
-
-      if (title && price > 0) {
-        products.push({
-          title,
-          handle: href.split("/").pop() || "",
-          colorName: "Unknown",
-          price,
-          compareAtPrice: null,
-          imageUrl,
-          productUrl,
-          sizes: [],
-          inStock: true,
-        });
-      }
-    } catch {
-      // skip malformed card
-    }
-  }
-
-  return products;
-}
-
-async function upsertLululemonProduct(
-  p: ExtractedProduct,
-  category: string
-): Promise<void> {
-  const colorBucket = extractColorBucket(p.colorName);
-  const externalId = `${p.handle}-${p.colorName}`;
+  const colourwaysJson = JSON.stringify(data.colorways);
 
   const existing = await prisma.product.findUnique({
-    where: {
-      brand_externalId_colorName: {
-        brand: BRAND_KEY,
-        externalId,
-        colorName: p.colorName,
-      },
-    },
+    where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
     select: { firstSeenAt: true },
   });
 
@@ -228,55 +127,114 @@ async function upsertLululemonProduct(
   const isNew = firstSeenAt > fourteenDaysAgo;
 
   await prisma.product.upsert({
-    where: {
-      brand_externalId_colorName: {
-        brand: BRAND_KEY,
-        externalId,
-        colorName: p.colorName,
-      },
-    },
+    where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
     create: {
-      externalId,
-      brand: BRAND_KEY,
-      title: p.title,
-      handle: p.handle,
-      productUrl: p.productUrl,
-      category,
-      colorName: p.colorName,
-      colorBucket,
-      price: p.price,
-      compareAtPrice: p.compareAtPrice,
-      onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
-      imageUrl: p.imageUrl,
-      sizes: JSON.stringify(p.sizes),
-      inStock: p.inStock,
+      externalId: data.externalId,
+      brand: data.brand,
+      title: data.title,
+      handle: data.handle,
+      productUrl: data.productUrl,
+      category: data.category,
+      // Primary colorway
+      colorName: primary.colorName,
+      colorBucket: primary.colorBucket,
+      imageUrl: primary.imageUrl,
+      // Aggregates
+      price: minPrice,
+      compareAtPrice: maxCompare,
+      onSale: anyOnSale,
+      colorways: colourwaysJson,
+      colorBuckets,
+      sizes: JSON.stringify(allSizes),
+      inStock: data.inStock,
       isNew: true,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
     },
     update: {
-      title: p.title,
-      productUrl: p.productUrl,
-      colorBucket,
-      price: p.price,
-      compareAtPrice: p.compareAtPrice,
-      onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
-      imageUrl: p.imageUrl,
-      sizes: JSON.stringify(p.sizes),
-      inStock: p.inStock,
+      title: data.title,
+      productUrl: data.productUrl,
+      category: data.category,
+      colorName: primary.colorName,
+      colorBucket: primary.colorBucket,
+      imageUrl: primary.imageUrl,
+      price: minPrice,
+      compareAtPrice: maxCompare,
+      onSale: anyOnSale,
+      colorways: colourwaysJson,
+      colorBuckets,
+      sizes: JSON.stringify(allSizes),
+      inStock: data.inStock,
       isNew,
       lastSeenAt: new Date(),
     },
   });
+
+  return !existing;
+}
+
+function buildColorwayFromSwatch(
+  product: LululemonProduct,
+  swatch: LululemonSwatch
+): Colorway {
+  const skusForColor = product.skuStyleOrder.filter(
+    (s) => s.colorId === swatch.colorId
+  );
+  const colorName = skusForColor[0]?.colorName || `Color ${swatch.colorId}`;
+
+  const rawImageUrl =
+    swatch.primaryImage ||
+    (skusForColor[0]?.images?.[0] ? skusForColor[0].images[0] : "");
+  const imageUrl = rawImageUrl.startsWith("http")
+    ? rawImageUrl
+    : `https:${rawImageUrl}`;
+
+  const sizes: SizeVariant[] = skusForColor.map((s) => ({
+    size: s.size,
+    available: true, // category pages don't expose per-size OOS; assume available
+  }));
+
+  const listPriceNum = parseFloat(product.listPrice[0] || "0");
+  const salePriceNum = product.productSalePrice[0]
+    ? parseFloat(product.productSalePrice[0])
+    : null;
+  const price = salePriceNum ?? listPriceNum;
+  const compareAtPrice = product.productOnSale ? listPriceNum : null;
+  const onSale = product.productOnSale;
+
+  const colorBucket = extractColorBucket(colorName);
+  const productUrl = `${BASE_URL}${product.pdpUrl}?color=${swatch.colorId}`;
+
+  logUnmappedColor(BRAND_KEY, colorName);
+
+  return {
+    colorName,
+    colorBucket,
+    imageUrl,
+    price,
+    compareAtPrice,
+    onSale,
+    sizes,
+    productUrl,
+  };
 }
 
 export async function scrapeLululemon(): Promise<{
   found: number;
   upserted: number;
 }> {
-  console.log(`[${BRAND_DISPLAY}] Starting Playwright scrape...`);
+  console.log(`[${BRAND_DISPLAY}] Starting scrape with real Chrome...`);
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: CHROME_PATH,
+    args: [
+      "--disable-blink-features=AutomationControlled",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+    ],
+  });
+
   const context = await browser.newContext({
     userAgent:
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -284,6 +242,8 @@ export async function scrapeLululemon(): Promise<{
     locale: "en-US",
     extraHTTPHeaders: {
       "Accept-Language": "en-US,en;q=0.9",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     },
   });
 
@@ -292,33 +252,75 @@ export async function scrapeLululemon(): Promise<{
 
   try {
     for (const { slug, category } of CATEGORIES) {
-      try {
+      let pageNum = 1;
+      let totalPages = 1;
+
+      while (pageNum <= totalPages) {
+        const url = `${BASE_URL}${slug}?page=${pageNum}`;
         const page = await context.newPage();
-        const url = `${BASE_URL}${slug}`;
-        console.log(`[${BRAND_DISPLAY}] Scraping ${category}: ${url}`);
+        console.log(`[${BRAND_DISPLAY}] ${category} p${pageNum}: ${url}`);
 
-        await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
-        await autoScrollAndLoadMore(page);
+        try {
+          await page.goto(url, {
+            waitUntil: "domcontentloaded",
+            timeout: 45000,
+          });
+          await delay(3500);
 
-        const products = await extractProductsFromPage(page, category);
-        console.log(`[${BRAND_DISPLAY}] ${category}: ${products.length} products`);
+          const pageData = await extractPageData(page);
+          if (!pageData || pageData.products.length === 0) {
+            console.log(`[${BRAND_DISPLAY}] ${category} p${pageNum}: no data`);
+            break;
+          }
 
-        for (const p of products) {
-          await upsertLululemonProduct(p, category);
-          totalUpserted++;
+          totalPages = pageData.totalProductPages;
+          console.log(
+            `[${BRAND_DISPLAY}] ${category} p${pageNum}/${totalPages}: ${pageData.products.length} products`
+          );
+
+          for (const product of pageData.products) {
+            if (!product.swatches || product.swatches.length === 0) continue;
+
+            // Build all colorways for this product
+            const colorways: Colorway[] = product.swatches.map((swatch) =>
+              buildColorwayFromSwatch(product, swatch)
+            );
+
+            const inStock = colorways.some((c) => c.sizes.some((s) => s.available));
+
+            const isNew = await upsertProduct({
+              externalId: product.repositoryId,
+              brand: BRAND_KEY,
+              title: product.displayName,
+              handle: product.unifiedId,
+              productUrl: `${BASE_URL}${product.pdpUrl}`,
+              category,
+              colorways,
+              inStock,
+            });
+
+            if (isNew) totalUpserted++;
+            totalFound++;
+          }
+        } catch (err) {
+          console.error(
+            `[${BRAND_DISPLAY}] Error on ${category} p${pageNum}:`,
+            err instanceof Error ? err.message.slice(0, 100) : err
+          );
+        } finally {
+          await page.close();
+          await delay(2000);
         }
-        totalFound += products.length;
 
-        await page.close();
-        await delay(2500);
-      } catch (err) {
-        console.error(`[${BRAND_DISPLAY}] Error on ${category}:`, err);
+        pageNum++;
       }
     }
   } finally {
     await browser.close();
   }
 
-  console.log(`[${BRAND_DISPLAY}] Done. ${totalFound} found, ${totalUpserted} upserted`);
+  console.log(
+    `[${BRAND_DISPLAY}] Done. ${totalFound} found, ${totalUpserted} upserted`
+  );
   return { found: totalFound, upserted: totalUpserted };
 }

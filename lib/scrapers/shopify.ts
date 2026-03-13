@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
 import { resolveCategory } from "@/lib/normalize/category";
 import type { BrandConfig } from "@/lib/config/brands";
-import type { UpsertableProduct, SizeVariant } from "@/types";
+import type { UpsertableProduct, Colorway, SizeVariant } from "@/types";
 
 interface ShopifyVariant {
   id: number;
@@ -77,7 +77,6 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   const tags = product.tags.map((t) => t.toLowerCase().trim());
   const type = product.product_type.toLowerCase();
 
-  // If brand specifies required mens tags, at least one must be present
   if (config.mensInclusionTags.length > 0) {
     const hasInclusionTag = config.mensInclusionTags.some((t) =>
       tags.includes(t.toLowerCase())
@@ -85,7 +84,6 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
     if (!hasInclusionTag) return false;
   }
 
-  // Exclude if any womens exclusion tag is present
   if (config.womensExclusionTags.length > 0) {
     const hasWomensTag = config.womensExclusionTags.some(
       (t) =>
@@ -102,17 +100,15 @@ function getColorOptionIndex(product: ShopifyProduct, config: BrandConfig): numb
   const idx = product.options.findIndex((o) =>
     config.colorOptionNames.map((n) => n.toLowerCase()).includes(o.name.toLowerCase())
   );
-  return idx; // -1 if not found
+  return idx;
 }
 
 function getSizeOptionIndex(product: ShopifyProduct, colorIndex: number): number {
-  // Size is usually the first option that isn't the color option
   const sizeKeywords = ["size", "sizes"];
   const idx = product.options.findIndex((o) =>
     sizeKeywords.includes(o.name.toLowerCase())
   );
   if (idx !== -1) return idx;
-  // If no explicit "Size" option, use the first option that isn't color
   return colorIndex === 0 ? 1 : 0;
 }
 
@@ -123,12 +119,38 @@ function getVariantOption(variant: ShopifyVariant, optionIndex: number): string 
   return "";
 }
 
+function extractColorFromTitle(title: string): string {
+  const lastDash = title.lastIndexOf(" - ");
+  if (lastDash === -1) return "Unknown";
+  let color = title.slice(lastDash + 3).trim();
+  color = color.replace(/\s+"[^"]*"$/, "").trim();
+  return color || "Unknown";
+}
+
 function groupVariantsByColor(
   product: ShopifyProduct,
   config: BrandConfig
 ): Record<string, ShopifyVariant[]> {
-  const colorOptionIndex = getColorOptionIndex(product, config);
   const groups: Record<string, ShopifyVariant[]> = {};
+
+  if (config.colorSource === "title") {
+    const color = extractColorFromTitle(product.title);
+    groups[color] = [...product.variants];
+    return groups;
+  }
+
+  if (config.colorSource === "tag" && config.colorTagPrefix) {
+    const prefix = config.colorTagPrefix.toLowerCase();
+    const colorTag = product.tags.find(
+      (t) => t.toLowerCase().startsWith(prefix) && t.toLowerCase() !== `${prefix}group--`
+    );
+    const raw = colorTag ? colorTag.slice(config.colorTagPrefix.length) : "Unknown";
+    const color = raw.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    groups[color] = [...product.variants];
+    return groups;
+  }
+
+  const colorOptionIndex = getColorOptionIndex(product, config);
 
   for (const variant of product.variants) {
     let color: string;
@@ -136,7 +158,6 @@ function groupVariantsByColor(
     if (colorOptionIndex >= 0) {
       color = getVariantOption(variant, colorOptionIndex) || "Unknown";
     } else {
-      // Fall back: parse from variant title "M / Heather Black"
       const parts = variant.title.split(" / ");
       color = parts.length > 1 ? parts[parts.length - 1].trim() : "Unknown";
     }
@@ -162,7 +183,6 @@ function resolveImageForColor(
   product: ShopifyProduct,
   colorVariants: ShopifyVariant[]
 ): string {
-  // Try to find an image that matches the first variant of this color
   const firstVariantId = colorVariants[0]?.id;
   if (firstVariantId) {
     const variantImage = product.images.find(
@@ -170,43 +190,52 @@ function resolveImageForColor(
     );
     if (variantImage) return variantImage.src;
   }
-  // Fall back to first product image
   return product.images[0]?.src ?? "";
 }
 
+/** Merge size lists, preferring available=true when a size appears in multiple colorways */
+function mergeSizes(colorways: Colorway[]): SizeVariant[] {
+  const sizeMap = new Map<string, boolean>();
+  for (const cw of colorways) {
+    for (const sv of cw.sizes) {
+      sizeMap.set(sv.size, (sizeMap.get(sv.size) ?? false) || sv.available);
+    }
+  }
+  return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
+}
+
 async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
-  const isNew = (() => {
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    // New products start as new; existing products retain their firstSeenAt
-    return true; // Will be overridden on update if firstSeenAt is older
-  })();
+  const primary = data.colorways[0];
+  if (!primary) return false;
+
+  // Derived aggregate fields
+  const minPrice = Math.min(...data.colorways.map((c) => c.price));
+  const anyOnSale = data.colorways.some((c) => c.onSale);
+  // compareAtPrice: use the highest original price when on sale
+  const comparePrices = data.colorways
+    .map((c) => c.compareAtPrice)
+    .filter((p): p is number => p !== null);
+  const maxCompare = comparePrices.length > 0 ? Math.max(...comparePrices) : null;
+  const allSizes = mergeSizes(data.colorways);
+
+  // Unique color buckets as comma-sep string for filtering
+  const bucketSet = new Set(data.colorways.map((c) => c.colorBucket));
+  const colorBuckets = Array.from(bucketSet).join(",");
 
   const existing = await prisma.product.findUnique({
-    where: {
-      brand_externalId_colorName: {
-        brand: data.brand,
-        externalId: data.externalId,
-        colorName: data.colorName,
-      },
-    },
+    where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
     select: { firstSeenAt: true },
   });
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
-  const computedIsNew = firstSeenAt > fourteenDaysAgo;
+  const isNew = firstSeenAt > fourteenDaysAgo;
+
+  const colourwaysJson = JSON.stringify(data.colorways);
 
   await prisma.product.upsert({
-    where: {
-      brand_externalId_colorName: {
-        brand: data.brand,
-        externalId: data.externalId,
-        colorName: data.colorName,
-      },
-    },
+    where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
     create: {
       externalId: data.externalId,
       brand: data.brand,
@@ -214,15 +243,19 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
       handle: data.handle,
       productUrl: data.productUrl,
       category: data.category,
-      colorName: data.colorName,
-      colorBucket: data.colorBucket,
-      price: data.price,
-      compareAtPrice: data.compareAtPrice,
-      onSale: data.onSale,
-      imageUrl: data.imageUrl,
-      sizes: JSON.stringify(data.sizes),
+      // Primary colorway
+      colorName: primary.colorName,
+      colorBucket: primary.colorBucket,
+      imageUrl: primary.imageUrl,
+      // Aggregates
+      price: minPrice,
+      compareAtPrice: maxCompare,
+      onSale: anyOnSale,
+      colorways: colourwaysJson,
+      colorBuckets,
+      sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
-      isNew: true, // new on first insert
+      isNew: true,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
     },
@@ -230,19 +263,22 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
       title: data.title,
       productUrl: data.productUrl,
       category: data.category,
-      colorBucket: data.colorBucket,
-      price: data.price,
-      compareAtPrice: data.compareAtPrice,
-      onSale: data.onSale,
-      imageUrl: data.imageUrl,
-      sizes: JSON.stringify(data.sizes),
+      colorName: primary.colorName,
+      colorBucket: primary.colorBucket,
+      imageUrl: primary.imageUrl,
+      price: minPrice,
+      compareAtPrice: maxCompare,
+      onSale: anyOnSale,
+      colorways: colourwaysJson,
+      colorBuckets,
+      sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
-      isNew: computedIsNew,
+      isNew,
       lastSeenAt: new Date(),
     },
   });
 
-  return !existing; // true if newly inserted
+  return !existing;
 }
 
 export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
@@ -261,7 +297,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   let skipped = 0;
 
   for (const product of menProducts) {
-    const category = resolveCategory(product.product_type, product.tags, config);
+    const category = resolveCategory(product.product_type, product.tags, config, product.title);
 
     if (!category) {
       console.debug(
@@ -275,6 +311,9 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     const colorOptionIndex = getColorOptionIndex(product, config);
     const sizeOptionIndex = getSizeOptionIndex(product, colorOptionIndex);
 
+    // Build all colorways for this product
+    const colorways: Colorway[] = [];
+
     for (const [colorName, variants] of Object.entries(colorGroups)) {
       const prices = variants.map((v) => parseFloat(v.price));
       const comparePrices = variants
@@ -284,32 +323,31 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       const minPrice = Math.min(...prices);
       const maxCompare = comparePrices.length > 0 ? Math.max(...comparePrices) : null;
       const onSale = maxCompare !== null && maxCompare > minPrice;
-      const inStock = variants.some((v) => v.available);
       const sizes = buildSizeVariants(variants, sizeOptionIndex);
       const imageUrl = resolveImageForColor(product, variants);
       const colorBucket = extractColorBucket(colorName);
 
       logUnmappedColor(config.brandKey, colorName);
 
-      const isNew = await upsertProduct({
-        externalId: `${product.id}-${colorName}`,
-        brand: config.brandKey,
-        title: product.title,
-        handle: product.handle,
-        productUrl: `https://${config.domain}/products/${product.handle}`,
-        category,
-        colorName,
-        colorBucket,
-        price: minPrice,
-        compareAtPrice: maxCompare,
-        onSale,
-        imageUrl,
-        sizes,
-        inStock,
-      });
-
-      if (isNew) upserted++;
+      colorways.push({ colorName, colorBucket, imageUrl, price: minPrice, compareAtPrice: maxCompare, onSale, sizes });
     }
+
+    if (colorways.length === 0) continue;
+
+    const inStock = colorways.some((c) => c.sizes.some((s) => s.available));
+
+    const isNew = await upsertProduct({
+      externalId: String(product.id),
+      brand: config.brandKey,
+      title: product.title,
+      handle: product.handle,
+      productUrl: `https://${config.domain}/products/${product.handle}`,
+      category,
+      colorways,
+      inStock,
+    });
+
+    if (isNew) upserted++;
   }
 
   console.log(

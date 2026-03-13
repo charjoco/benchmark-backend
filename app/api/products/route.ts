@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { SizeVariant } from "@/types";
+import type { SizeVariant, Colorway } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,11 @@ export async function GET(req: NextRequest) {
     ...(brands.length > 0 && { brand: { in: brands } }),
     ...(onSale && { onSale: true }),
     ...(isNew && { isNew: true }),
-    ...(colors.length > 0 && { colorBucket: { in: colors } }),
+    // colorBuckets is a comma-sep string (e.g. "Black,Navy,Grey")
+    // Match if any selected color bucket appears in that string
+    ...(colors.length > 0 && {
+      OR: colors.map((c) => ({ colorBuckets: { contains: c } })),
+    }),
     price: { gte: minPrice, lte: maxPrice },
   };
 
@@ -50,6 +54,7 @@ export async function GET(req: NextRequest) {
   const products = rawProducts.map((p) => ({
     ...p,
     sizes: JSON.parse(p.sizes) as SizeVariant[],
+    colorways: JSON.parse(p.colorways) as Colorway[],
   }));
 
   return NextResponse.json({
