@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/product-card";
-import type { ProductRow, SizeVariant } from "@/types";
+import type { ProductRow, SizeVariant, Colorway } from "@/types";
 
 interface ProductGridProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -69,6 +69,7 @@ export async function ProductGrid({ searchParams }: ProductGridProps) {
   const products: ProductRow[] = rawProducts.map((p) => ({
     ...p,
     sizes: JSON.parse(p.sizes) as SizeVariant[],
+    colorways: JSON.parse(p.colorways) as Colorway[],
   }));
 
   const totalPages = Math.ceil(total / pageSize);
