@@ -28,11 +28,13 @@ model Product {
   colorBuckets   String   @default("")
   // Union of all sizes across all colorways (JSON)
   sizes          String   @default("[]")
-  inStock        Boolean  @default(true)
-  isNew          Boolean  @default(false)
-  firstSeenAt    DateTime @default(now())
-  lastSeenAt     DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  inStock        Boolean   @default(true)
+  isNew          Boolean   @default(false)
+  firstSeenAt    DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  priceDroppedAt DateTime?
+  restockedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
 
   @@unique([brand, externalId])
   @@index([brand])

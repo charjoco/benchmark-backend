@@ -5,7 +5,8 @@ export type AppCategory =
   | "sweaters"
   | "zips"
   | "shorts"
-  | "pants";
+  | "pants"
+  | "jackets";
 
 export type ColorBucket =
   | "Black"

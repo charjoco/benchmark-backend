@@ -1,8 +1,10 @@
 import type { AppCategory } from "@/types";
 import type { BrandConfig } from "@/lib/config/brands";
 
+// jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
 const PRIORITY_ORDER: AppCategory[] = [
+  "jackets",
   "zips",
   "longsleeve",
   "shirts",
@@ -48,6 +50,7 @@ export function resolveCategory(
 }
 
 export const CATEGORY_LABELS: Record<AppCategory, string> = {
+  jackets: "Jackets & Coats",
   shirts: "Shirts",
   longsleeve: "Long Sleeve",
   hoodies: "Hoodies",
@@ -58,6 +61,7 @@ export const CATEGORY_LABELS: Record<AppCategory, string> = {
 };
 
 export const ALL_CATEGORIES: AppCategory[] = [
+  "jackets",
   "shirts",
   "longsleeve",
   "hoodies",

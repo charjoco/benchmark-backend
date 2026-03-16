@@ -35,6 +35,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     categoryMappings: {
       // productTypes match BYLT's type strings; type check uses .includes() so "Men's-Tops-Outerwear".includes("Outerwear") works
+      jackets: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       zips: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
       longsleeve: { productTypes: ["Men's-Top-Long-Sleeves", "Men's-Tops-Long-Sleeves", "Mens-Tops-Long-Sleeves"] },
       shirts: { productTypes: ["Men's-Tops-Short-Sleeves", "Mens-Tops-Short-Sleeves", "Men's-Tops-Polos", "Men's-Tops-Tanks"] },
@@ -56,6 +57,7 @@ export const BRANDS: BrandConfig[] = [
     colorSource: "title",
     categoryMappings: {
       // longsleeve must come before shirts in resolution; titleContains restricts to LS products
+      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       longsleeve: { productTypes: ["Shirts", "Long Sleeve"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Shirts", "Short Sleeve", "T-Shirts"], tags: ["short sleeve", "tee", "t-shirt"] },
       hoodies: { productTypes: ["Hoodies"], tags: ["hoodie", "pullover"] },
@@ -78,6 +80,7 @@ export const BRANDS: BrandConfig[] = [
     colorSource: "tag",
     colorTagPrefix: "color--",
     categoryMappings: {
+      jackets: { productTypes: ["Outerwear", "Jackets"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       longsleeve: { productTypes: ["Shirts", "Tees"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Shirts", "Tees", "Polos"] },
       hoodies: { productTypes: ["Sweats", "Sweatshirts"], titleContains: ["hoodie", "pullover"] },
@@ -97,6 +100,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Colour", "Color"],
     // RC uses type="MENS" for everything — categories come from product title only
     categoryMappings: {
+      jackets: { productTypes: ["MENS"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       zips: { productTypes: ["MENS"], titleContains: ["zip", "quarter-zip", "half-zip", "1/4 zip", "half zip", "quarter zip"] },
       longsleeve: { productTypes: ["MENS"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["MENS"], titleContains: ["t-shirt", "tee", "polo"] },
@@ -117,6 +121,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     // Athleisure lives in "TS KNITS" and "Sweater" types — "Shirt" type is formal dress shirts
     categoryMappings: {
+      jackets: { productTypes: ["TS KNITS", "Outerwear", "Jacket", "Coat"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       zips: { productTypes: ["TS KNITS", "Sweater"], titleContains: ["zip"] },
       longsleeve: { productTypes: ["TS KNITS"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["TS KNITS", "Sweater"], titleContains: ["tee", "t-shirt", "polo"] },
@@ -137,6 +142,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks
     categoryMappings: {
+      jackets: { productTypes: ["Jackets", "Outerwear", "Midlayers"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       zips: { productTypes: ["Midlayers", "Sweaters"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["Tees", "Shirts"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Tees", "Polos"] },
@@ -155,6 +161,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
     categoryMappings: {
+      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       shirts: { productTypes: ["T-Shirts", "Short Sleeve"], tags: ["short sleeve", "t-shirt", "tee"] },
       longsleeve: { productTypes: ["Long Sleeve"], tags: ["long sleeve"] },
       hoodies: { productTypes: ["Hoodies"], tags: ["hoodie", "pullover"] },
@@ -176,6 +183,46 @@ export const BRANDS: BrandConfig[] = [
     categoryMappings: {},
   },
   {
+    brandKey: "ten-thousand",
+    displayName: "Ten Thousand",
+    domain: "www.tenthousand.cc",
+    scraperType: "shopify",
+    mensInclusionTags: [],
+    womensExclusionTags: ["women", "womens"],
+    colorOptionNames: ["Color"],
+    // product_type uses full names like "Interval Shirt", "Tactical Short" — keywords match via .includes()
+    categoryMappings: {
+      jackets: { productTypes: ["jacket", "coat", "vest", "shell", "anorak", "windbreaker"] },
+      longsleeve: { productTypes: ["long sleeve"] },
+      shirts: { productTypes: ["shirt", "tee"] },
+      hoodies: { productTypes: ["hoodie"] },
+      sweaters: { productTypes: ["crew"] },
+      zips: { productTypes: ["zip"] },
+      shorts: { productTypes: ["short"] },
+      pants: { productTypes: ["pant", "jogger"] },
+    },
+  },
+  {
+    brandKey: "public-rec",
+    displayName: "Public Rec",
+    domain: "www.publicrec.com",
+    scraperType: "shopify",
+    mensInclusionTags: [],
+    womensExclusionTags: ["women", "womens", "women's"],
+    colorOptionNames: ["Color"],
+    // Color is option1, Size is option2 (e.g. "Cypress / S")
+    categoryMappings: {
+      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      shirts: { productTypes: ["T-Shirts", "Tees", "Polos"] },
+      longsleeve: { productTypes: ["T-Shirts", "Tees"], titleContains: ["long sleeve", "longsleeve"] },
+      zips: { productTypes: ["Sweatshirts"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
+      hoodies: { productTypes: ["Sweatshirts"], titleContains: ["hoodie", "pullover"] },
+      sweaters: { productTypes: ["Sweatshirts"], titleContains: ["crew", "crewneck", "sweatshirt", "fleece", "weekend"] },
+      shorts: { productTypes: ["Shorts", ""], titleContains: ["short"] },
+      pants: { productTypes: ["Pants", "Joggers"] },
+    },
+  },
+  {
     brandKey: "vuori",
     displayName: "Vuori",
     // vuoriclothing.com is headless Next.js; myshopify URL serves the JSON API
@@ -186,6 +233,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     // Vuori product types: Tops (tees/hoodies/crews/sweaters), Jackets & Hoodies, Shorts, Boardshorts, Pants, Joggers, Sweaters
     categoryMappings: {
+      jackets: { productTypes: ["Jackets & Hoodies"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       zips: { productTypes: ["Jackets & Hoodies", "Tops"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
       longsleeve: { productTypes: ["Tops"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Tops", "Tanks"], titleContains: ["tee", "t-shirt", "polo", "short sleeve", "muscle", "v-neck", "tank", "henley"] },

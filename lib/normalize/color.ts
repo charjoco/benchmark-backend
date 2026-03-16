@@ -7,6 +7,7 @@ const COLOR_RULES: Array<{ keywords: string[]; bucket: ColorBucket }> = [
     keywords: [
       "black", "onyx", "obsidian", "graphite", "ink", "jet", "caviar",
       "ebony", "carbon", "iron", "shadow", "nightfall", "midnight black",
+      "anthracite", "eclipse", "midnight", "zodiac", "basalt",
     ],
     bucket: "Black",
   },
@@ -27,7 +28,8 @@ const COLOR_RULES: Array<{ keywords: string[]; bucket: ColorBucket }> = [
     keywords: [
       "grey", "gray", "heather", "ash", "smoke", "silver", "slate",
       "fog", "cement", "stone", "pebble", "flint", "charcoal", "pewter",
-      "cloud", "birch", "oatmeal",
+      "cloud", "birch", "oatmeal", "gravel", "winter frost", "platinum",
+      "salt", "granite", "ridgeline",
     ],
     bucket: "Grey",
   },
@@ -35,7 +37,7 @@ const COLOR_RULES: Array<{ keywords: string[]; bucket: ColorBucket }> = [
     keywords: [
       "blue", "cobalt", "azure", "sapphire", "ocean", "sky", "teal",
       "coastal", "lagoon", "cerulean", "indigo", "denim", "chambray",
-      "electric blue", "royal blue", "cornflower", "airforce",
+      "electric blue", "royal blue", "cornflower", "airforce", "wave",
     ],
     bucket: "Blue",
   },
@@ -43,7 +45,8 @@ const COLOR_RULES: Array<{ keywords: string[]; bucket: ColorBucket }> = [
     keywords: [
       "green", "olive", "sage", "forest", "army", "moss", "hunter",
       "camo", "camouflage", "pine", "botanical", "eucalyptus", "cypress",
-      "fern", "basil", "seaweed", "kelp", "reed", "juniper",
+      "fern", "basil", "seaweed", "kelp", "reed", "juniper", "jungle", "lime",
+      "sulphur spring", "highland", "fir", "leaf",
     ],
     bucket: "Green",
   },
@@ -52,6 +55,8 @@ const COLOR_RULES: Array<{ keywords: string[]; bucket: ColorBucket }> = [
       "brown", "tan", "camel", "sand", "khaki", "taupe", "mocha",
       "coffee", "espresso", "caramel", "walnut", "chestnut", "driftwood",
       "bark", "timber", "hazel", "oak", "acorn", "cognac",
+      "macadamia", "toasted almond", "light cocoa", "mushroom",
+      "americano", "fossil", "flat dark earth", "resin", "rover",
     ],
     bucket: "Brown",
   },
@@ -86,7 +91,7 @@ const COLOR_RULES: Array<{ keywords: string[]; bucket: ColorBucket }> = [
   {
     keywords: [
       "pink", "rose", "blush", "salmon", "coral", "magenta",
-      "fuchsia", "flamingo", "carnation", "dusty pink",
+      "fuchsia", "flamingo", "carnation", "dusty pink", "hibiscus",
     ],
     bucket: "Pink",
   },

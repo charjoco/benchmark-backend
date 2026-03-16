@@ -73,9 +73,14 @@ async function fetchAllProducts(domain: string): Promise<ShopifyProduct[]> {
   return all;
 }
 
+function normalizeStr(s: string): string {
+  return s.toLowerCase().trim().replace(/\u2019/g, "'");
+}
+
 function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
-  const tags = product.tags.map((t) => t.toLowerCase().trim());
-  const type = product.product_type.toLowerCase();
+  const tags = product.tags.map((t) => normalizeStr(t));
+  const type = normalizeStr(product.product_type);
+  const title = product.title.toLowerCase();
 
   if (config.mensInclusionTags.length > 0) {
     const hasInclusionTag = config.mensInclusionTags.some((t) =>
@@ -87,11 +92,15 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   if (config.womensExclusionTags.length > 0) {
     const hasWomensTag = config.womensExclusionTags.some(
       (t) =>
-        tags.includes(t.toLowerCase()) ||
-        type.includes(t.toLowerCase())
+        tags.includes(normalizeStr(t)) ||
+        type.includes(normalizeStr(t))
     );
     if (hasWomensTag) return false;
   }
+
+  // Title-based exclusion: catch women's items that slip through gender tagging
+  const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong"];
+  if (womensTitleWords.some((w) => title.includes(w))) return false;
 
   return true;
 }
@@ -224,13 +233,19 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
 
   const existing = await prisma.product.findUnique({
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
-    select: { firstSeenAt: true },
+    select: { firstSeenAt: true, price: true, inStock: true },
   });
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
   const isNew = firstSeenAt > fourteenDaysAgo;
+
+  const now = new Date();
+  const priceDroppedAt =
+    existing && minPrice < existing.price ? now : undefined;
+  const restockedAt =
+    existing && !existing.inStock && data.inStock ? now : undefined;
 
   const colourwaysJson = JSON.stringify(data.colorways);
 
@@ -256,8 +271,8 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew: true,
-      firstSeenAt: new Date(),
-      lastSeenAt: new Date(),
+      firstSeenAt: now,
+      lastSeenAt: now,
     },
     update: {
       title: data.title,
@@ -274,7 +289,9 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew,
-      lastSeenAt: new Date(),
+      lastSeenAt: now,
+      ...(priceDroppedAt && { priceDroppedAt }),
+      ...(restockedAt && { restockedAt }),
     },
   });
 
