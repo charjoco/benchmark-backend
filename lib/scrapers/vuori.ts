@@ -2,7 +2,24 @@ import axios from "axios";
 import { chromium, type Page } from "playwright";
 import { prisma } from "@/lib/prisma";
 import { extractColorBucket } from "@/lib/normalize/color";
-import type { UpsertableProduct, SizeVariant } from "@/types";
+import type { SizeVariant } from "@/types";
+
+interface VuoriUpsertableProduct {
+  externalId: string;
+  brand: string;
+  title: string;
+  handle: string;
+  productUrl: string;
+  category: string;
+  colorName: string;
+  colorBucket: string;
+  price: number;
+  compareAtPrice: number | null;
+  onSale: boolean;
+  imageUrl: string;
+  sizes: SizeVariant[];
+  inStock: boolean;
+}
 
 const BRAND_KEY = "vuori";
 const BRAND_DISPLAY = "Vuori";
@@ -265,13 +282,12 @@ async function scrapeVuoriPlaywright(): Promise<{ found: number; upserted: numbe
   return { found: totalFound, upserted: totalUpserted };
 }
 
-async function upsertVuoriProduct(data: UpsertableProduct): Promise<void> {
+async function upsertVuoriProduct(data: VuoriUpsertableProduct): Promise<void> {
   const existing = await prisma.product.findUnique({
     where: {
-      brand_externalId_colorName: {
+      brand_externalId: {
         brand: data.brand,
         externalId: data.externalId,
-        colorName: data.colorName,
       },
     },
     select: { firstSeenAt: true },
@@ -284,15 +300,26 @@ async function upsertVuoriProduct(data: UpsertableProduct): Promise<void> {
 
   await prisma.product.upsert({
     where: {
-      brand_externalId_colorName: {
+      brand_externalId: {
         brand: data.brand,
         externalId: data.externalId,
-        colorName: data.colorName,
       },
     },
     create: {
-      ...data,
+      externalId: data.externalId,
+      brand: data.brand,
+      title: data.title,
+      handle: data.handle,
+      productUrl: data.productUrl,
+      category: data.category,
+      colorName: data.colorName,
+      colorBucket: data.colorBucket,
+      price: data.price,
+      compareAtPrice: data.compareAtPrice,
+      onSale: data.onSale,
+      imageUrl: data.imageUrl,
       sizes: JSON.stringify(data.sizes),
+      inStock: data.inStock,
       isNew: true,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
