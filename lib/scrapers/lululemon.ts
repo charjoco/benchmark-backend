@@ -6,8 +6,11 @@ import type { UpsertableProduct, Colorway, SizeVariant } from "@/types";
 const BRAND_KEY = "lululemon";
 const BRAND_DISPLAY = "Lululemon";
 const BASE_URL = "https://shop.lululemon.com";
-// Real Chrome binary — bypasses Akamai bot detection that rejects headless Chromium
-const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+// Use real Chrome on macOS to bypass Akamai; fall back to Playwright's bundled Chromium on Linux (Railway)
+const CHROME_PATH =
+  process.platform === "darwin"
+    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    : undefined;
 
 interface LululemonCategory {
   slug: string;
@@ -236,7 +239,7 @@ export async function scrapeLululemon(): Promise<{
 
   const browser = await chromium.launch({
     headless: true,
-    executablePath: CHROME_PATH,
+    ...(CHROME_PATH && { executablePath: CHROME_PATH }),
     args: [
       "--disable-blink-features=AutomationControlled",
       "--no-sandbox",

@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
   const drops = searchParams.get("drops") === "true";
   const priceDrops = searchParams.get("priceDrops") === "true";
   const restocks = searchParams.get("restocks") === "true";
+  const popular = searchParams.get("popular") === "true";
   const colors = searchParams.getAll("color");
   const sizes = searchParams.getAll("size");
   const minPrice = parseFloat(searchParams.get("minPrice") || "0");
@@ -58,10 +59,15 @@ export async function GET(req: NextRequest) {
     ? { OR: sizes.map((s) => ({ sizes: { contains: `"size":"${s}"` } })) }
     : undefined;
 
+  // Exclude sale items from default browsing — they only appear when user explicitly
+  // filters for sale or browses the price-drops feed (limited supply items shouldn't crowd feed).
+  const hideSaleInDefaultFeed = !onSale && !priceDrops;
+
   const sharedWhere = {
     inStock: true,
     ...(category && { category }),
     ...(onSale && { onSale: true }),
+    ...(hideSaleInDefaultFeed && !drops && !restocks && !popular && { onSale: false }),
     ...(isNew && { isNew: true }),
     ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
     ...(priceDrops && { priceDroppedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
@@ -79,14 +85,16 @@ export async function GET(req: NextRequest) {
         ? { price: "desc" as const }
         : sortBy === "newest"
           ? { firstSeenAt: "desc" as const }
-          : { lastSeenAt: "desc" as const };
+          : popular
+            ? { firstSeenAt: "desc" as const }
+            : { lastSeenAt: "desc" as const };
 
   // Use interleaved anchor/discovery fetch only for the unfiltered default feed.
   // Any explicit brand selection or non-default sort bypasses boosting.
   const useBoost =
     brands.length === 0 &&
     sortBy === "lastSeenAt" &&
-    !drops && !priceDrops && !restocks;
+    !drops && !priceDrops && !restocks && !popular;
 
   if (useBoost) {
     const anchorWhere = { ...sharedWhere, brand: { in: ANCHOR_BRANDS } };
