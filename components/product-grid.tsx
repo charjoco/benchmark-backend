@@ -70,6 +70,7 @@ export async function ProductGrid({ searchParams }: ProductGridProps) {
     ...p,
     sizes: JSON.parse(p.sizes) as SizeVariant[],
     colorways: JSON.parse(p.colorways) as Colorway[],
+    sellers: JSON.parse(p.sellers) as import("@/types").Seller[],
   }));
 
   const totalPages = Math.ceil(total / pageSize);
