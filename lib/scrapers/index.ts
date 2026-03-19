@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { BRANDS } from "@/lib/config/brands";
 import { scrapeShopifyBrand } from "./shopify";
 import { scrapeLululemon } from "./lululemon";
-import { scrapeAloYoga } from "./alo-yoga";
 import { scrapeNordstrom } from "./nordstrom";
 import { scrapeREI } from "./rei";
 
@@ -51,7 +50,6 @@ export async function runAllScrapers(): Promise<void> {
 
   // Playwright brands
   await runWithLog("lululemon", scrapeLululemon);
-  await runWithLog("alo-yoga", scrapeAloYoga);
 
   // Retailer scrapers — add seller options to existing products
   await runWithLog("nordstrom", () => scrapeNordstrom().then((r) => ({ found: r.found, upserted: r.matched })));
@@ -95,8 +93,6 @@ export async function runSingleBrand(brandKey: string): Promise<void> {
     await runWithLog(brand.brandKey, () => scrapeShopifyBrand(brand));
   } else if (brand.brandKey === "lululemon") {
     await runWithLog("lululemon", scrapeLululemon);
-  } else if (brand.brandKey === "alo-yoga") {
-    await runWithLog("alo-yoga", scrapeAloYoga);
   } else {
     throw new Error(`No scraper implemented for playwright brand: ${brandKey}`);
   }

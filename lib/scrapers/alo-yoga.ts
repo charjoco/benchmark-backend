@@ -7,7 +7,9 @@ const BRAND_KEY = "alo-yoga";
 const BRAND_DISPLAY = "Alo Yoga";
 const BASE_URL = "https://www.aloyoga.com";
 const CHROME_PATH =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  process.platform === "darwin"
+    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    : undefined;
 
 /**
  * Map Alo Yoga product_type → app category.
@@ -75,6 +77,18 @@ const COLLECTIONS = [
 const SUPPORTED_CATEGORIES = new Set([
   "shirts", "longsleeve", "hoodies", "sweaters", "zips", "shorts", "pants",
 ]);
+
+// Exclude non-clothing items that appear in men's collections
+const EXCLUDED_TITLE_KEYWORDS = [
+  "mat", "strap", "block", "towel", "bag", "backpack", "bottle",
+  "sock", "glove", "hat", "cap", "beanie", "headband", "band",
+  "roller", "weight", "resistance", "equipment", "accessory",
+];
+
+function isClothing(title: string): boolean {
+  const lower = title.toLowerCase();
+  return !EXCLUDED_TITLE_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

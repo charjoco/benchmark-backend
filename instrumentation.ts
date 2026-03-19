@@ -8,6 +8,29 @@ export async function register() {
 
   const { default: cron } = await import("node-cron");
   const { runAllScrapers } = await import("./lib/scrapers");
+  const { prisma } = await import("./lib/prisma");
+
+  // Fix product URLs that still point to myshopify.com domains
+  const urlFixes: { brand: string; from: string; to: string }[] = [
+    { brand: "vuori", from: "vuori-clothing.myshopify.com", to: "vuoriclothing.com" },
+    { brand: "bylt", from: "bylt-apparel.myshopify.com", to: "byltbasics.com" },
+    { brand: "buck-mason", from: "buck-mason-usa.myshopify.com", to: "buckmason.com" },
+  ];
+  for (const { brand, from, to } of urlFixes) {
+    const products = await prisma.product.findMany({
+      where: { brand, productUrl: { contains: from } },
+      select: { id: true, productUrl: true },
+    });
+    for (const p of products) {
+      await prisma.product.update({
+        where: { id: p.id },
+        data: { productUrl: p.productUrl.replace(from, to) },
+      });
+    }
+    if (products.length > 0) {
+      console.log(`[Migration] Fixed ${products.length} ${brand} URLs (${from} → ${to})`);
+    }
+  }
 
   console.log("[Scheduler] Registering daily scrape cron (3:00 AM)");
 
