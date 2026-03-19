@@ -29,6 +29,16 @@ export interface SizeVariant {
   available: boolean;
 }
 
+/** An additional retailer that carries this product */
+export interface Seller {
+  seller: string;        // e.g. "nordstrom" | "rei"
+  displayName: string;   // e.g. "Nordstrom" | "REI"
+  url: string;
+  price: number;
+  compareAtPrice: number | null;
+  onSale: boolean;
+}
+
 /** A single color variant of a product */
 export interface Colorway {
   colorName: string;
@@ -59,6 +69,8 @@ export interface ProductRow {
   onSale: boolean;
   // All colorways
   colorways: Colorway[];
+  // Additional retailer options (Nordstrom, REI, etc.)
+  sellers: Seller[];
   colorBuckets: string;     // comma-sep list of unique color buckets
   sizes: SizeVariant[];     // union of all sizes
   inStock: boolean;

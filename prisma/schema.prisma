@@ -24,6 +24,8 @@ model Product {
   onSale         Boolean  @default(false)
   // All colorways serialised as JSON (array of Colorway objects)
   colorways      String   @default("[]")
+  // Additional sellers (Nordstrom, REI) JSON: [{ seller, displayName, url, price, compareAtPrice, onSale }]
+  sellers        String   @default("[]")
   // Comma-separated list of unique color buckets across all colorways — used for filtering
   colorBuckets   String   @default("")
   // Union of all sizes across all colorways (JSON)

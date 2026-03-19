@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { SizeVariant, Colorway } from "@/types";
+import type { SizeVariant, Colorway, Seller } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,7 @@ function parseProducts(raw: RawProduct[]) {
     ...p,
     sizes: JSON.parse(p.sizes) as SizeVariant[],
     colorways: JSON.parse(p.colorways) as Colorway[],
+    sellers: JSON.parse(p.sellers) as Seller[],
   }));
 }
 
@@ -100,12 +101,19 @@ export async function GET(req: NextRequest) {
     const anchorWhere = { ...sharedWhere, brand: { in: ANCHOR_BRANDS } };
     const discoveryWhere = { ...sharedWhere, brand: { notIn: ANCHOR_BRANDS } };
 
-    const [anchorRaw, anchorTotal, discoveryRaw, discoveryTotal] = await Promise.all([
-      prisma.product.findMany({ where: anchorWhere, orderBy, skip: (page - 1) * ANCHOR_PER_PAGE, take: ANCHOR_PER_PAGE }),
+    // Premium ($80+) anchor items lead each page; standard fills the rest
+    const PREMIUM_PER_PAGE = 24;
+    const STANDARD_PER_PAGE = ANCHOR_PER_PAGE - PREMIUM_PER_PAGE;
+
+    const [premiumAnchorRaw, standardAnchorRaw, anchorTotal, discoveryRaw, discoveryTotal] = await Promise.all([
+      prisma.product.findMany({ where: { ...anchorWhere, price: { gte: 80 } }, orderBy, skip: (page - 1) * PREMIUM_PER_PAGE, take: PREMIUM_PER_PAGE }),
+      prisma.product.findMany({ where: { ...anchorWhere, price: { lt: 80 } }, orderBy, skip: (page - 1) * STANDARD_PER_PAGE, take: STANDARD_PER_PAGE }),
       prisma.product.count({ where: anchorWhere }),
       prisma.product.findMany({ where: discoveryWhere, orderBy, skip: (page - 1) * DISCOVERY_PER_PAGE, take: DISCOVERY_PER_PAGE }),
       prisma.product.count({ where: discoveryWhere }),
     ]);
+
+    const anchorRaw = [...premiumAnchorRaw, ...standardAnchorRaw];
 
     const products = parseProducts(interleave(anchorRaw, discoveryRaw));
     const total = anchorTotal + discoveryTotal;
