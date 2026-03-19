@@ -32,8 +32,8 @@ interface ShopifyResponse {
   products: ShopifyProduct[];
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, jitter = 0): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 }
 
 async function fetchAllProducts(domain: string): Promise<ShopifyProduct[]> {
@@ -60,7 +60,7 @@ async function fetchAllProducts(domain: string): Promise<ShopifyProduct[]> {
       all.push(...products);
       if (products.length < limit) break;
       page++;
-      await delay(600);
+      await delay(500, 600);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
         console.warn(`[${domain}] /products.json returned 404 — not a Shopify store?`);

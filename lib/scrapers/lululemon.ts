@@ -30,8 +30,8 @@ const CATEGORIES: LululemonCategory[] = [
   { slug: "/c/men-pants/n1u9dn", category: "pants" },
 ];
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, jitter = 0): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 }
 
 interface LululemonSwatch {
@@ -277,7 +277,7 @@ export async function scrapeLululemon(): Promise<{
             waitUntil: "domcontentloaded",
             timeout: 45000,
           });
-          await delay(3500);
+          await delay(2500, 2000);
 
           const pageData = await extractPageData(page);
           if (!pageData || pageData.products.length === 0) {
@@ -321,7 +321,7 @@ export async function scrapeLululemon(): Promise<{
           );
         } finally {
           await page.close();
-          await delay(2000);
+          await delay(1500, 1000);
         }
 
         pageNum++;

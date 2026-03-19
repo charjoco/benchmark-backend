@@ -18,8 +18,8 @@ const CHROME_PATH =
     ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     : undefined;
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, jitter = 0): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 }
 
 function normalizeTitle(title: string, brandName: string): string {
@@ -159,7 +159,7 @@ export async function scrapeREI(): Promise<{ found: number; matched: number }> {
       try {
         console.log(`[${BRAND_DISPLAY}] Scraping ${reiSlug} men's clothing`);
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await delay(3000);
+        await delay(2500, 1500);
 
         const products = await extractProducts(page);
         console.log(`[${BRAND_DISPLAY}] Found ${products.length} products for ${reiSlug}`);
@@ -173,7 +173,7 @@ export async function scrapeREI(): Promise<{ found: number; matched: number }> {
         console.error(`[${BRAND_DISPLAY}] Error for ${reiSlug}:`, err instanceof Error ? err.message.slice(0, 100) : err);
       } finally {
         await page.close();
-        await delay(2000);
+        await delay(1500, 1000);
       }
     }
   } finally {

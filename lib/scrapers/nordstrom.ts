@@ -21,18 +21,14 @@ const CHROME_PATH =
     ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     : undefined;
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, jitter = 0): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 }
 
 function normalizeTitle(title: string, brandName: string): string {
   // Remove brand prefix from title (Nordstrom often prepends brand name)
   const withoutBrand = title.replace(new RegExp(`^${brandName}\\s+`, "i"), "");
   return withoutBrand.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
-}
-
-function normalizeBrandKey(brandName: string): string {
-  return brandName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
 interface NordstromProduct {
@@ -175,7 +171,7 @@ export async function scrapeNordstrom(): Promise<{ found: number; matched: numbe
       try {
         console.log(`[${BRAND_DISPLAY}] Searching "${nordstromBrand}" men activewear`);
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await delay(3000);
+        await delay(2500, 1500);
 
         const products = await extractProducts(page);
         console.log(`[${BRAND_DISPLAY}] Found ${products.length} products for ${nordstromBrand}`);
@@ -189,7 +185,7 @@ export async function scrapeNordstrom(): Promise<{ found: number; matched: numbe
         console.error(`[${BRAND_DISPLAY}] Error for ${nordstromBrand}:`, err instanceof Error ? err.message.slice(0, 100) : err);
       } finally {
         await page.close();
-        await delay(2000);
+        await delay(1500, 1000);
       }
     }
   } finally {

@@ -7,36 +7,45 @@ import { scrapeREI } from "./rei";
 
 async function runWithLog(
   brand: string,
-  fn: () => Promise<{ found: number; upserted: number }>
+  fn: () => Promise<{ found: number; upserted: number }>,
+  maxAttempts = 2
 ): Promise<void> {
   const log = await prisma.scrapeLog.create({
     data: { brand, status: "running" },
   });
 
-  try {
-    const result = await fn();
-    await prisma.scrapeLog.update({
-      where: { id: log.id },
-      data: {
-        status: "success",
-        finishedAt: new Date(),
-        itemsFound: result.found,
-        itemsUpserted: result.upserted,
-      },
-    });
-    console.log(`[Scraper] ${brand}: success (${result.found} found, ${result.upserted} upserted)`);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    await prisma.scrapeLog.update({
-      where: { id: log.id },
-      data: {
-        status: "error",
-        finishedAt: new Date(),
-        errorMessage: message,
-      },
-    });
-    console.error(`[Scraper] ${brand}: FAILED — ${message}`);
+  let lastError: string | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      if (attempt > 1) {
+        const backoff = attempt * 30000; // 30s, 60s
+        console.log(`[Scraper] ${brand}: retry attempt ${attempt} in ${backoff / 1000}s...`);
+        await new Promise((r) => setTimeout(r, backoff));
+      }
+
+      const result = await fn();
+      await prisma.scrapeLog.update({
+        where: { id: log.id },
+        data: {
+          status: "success",
+          finishedAt: new Date(),
+          itemsFound: result.found,
+          itemsUpserted: result.upserted,
+        },
+      });
+      console.log(`[Scraper] ${brand}: success (${result.found} found, ${result.upserted} upserted)`);
+      return;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err.message : String(err);
+      console.error(`[Scraper] ${brand}: attempt ${attempt} failed — ${lastError}`);
+    }
   }
+
+  await prisma.scrapeLog.update({
+    where: { id: log.id },
+    data: { status: "error", finishedAt: new Date(), errorMessage: lastError },
+  });
 }
 
 export async function runAllScrapers(): Promise<void> {
