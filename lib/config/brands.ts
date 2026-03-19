@@ -11,6 +11,8 @@ export interface BrandConfig {
   brandKey: string;
   displayName: string;
   domain: string;
+  /** Real website domain for product URLs (when domain is a myshopify URL) */
+  websiteDomain?: string;
   scraperType: "shopify" | "playwright";
   mensInclusionTags: string[];
   womensExclusionTags: string[];
@@ -28,6 +30,7 @@ export const BRANDS: BrandConfig[] = [
     displayName: "BYLT",
     // byltbasics.com is headless (Pack CMS); myshopify URL serves the JSON API
     domain: "bylt-apparel.myshopify.com",
+    websiteDomain: "byltbasics.com",
     scraperType: "shopify",
     // BYLT embeds gender in product_type (e.g. "Men's-Tops-Short-Sleeves")
     mensInclusionTags: [],
@@ -72,6 +75,7 @@ export const BRANDS: BrandConfig[] = [
     displayName: "Buck Mason",
     // buckmason.com is headless; myshopify URL serves the JSON API
     domain: "buck-mason-usa.myshopify.com",
+    websiteDomain: "buckmason.com",
     scraperType: "shopify",
     mensInclusionTags: ["filter-gender:men"],
     womensExclusionTags: ["filter-gender:women"],
@@ -228,6 +232,7 @@ export const BRANDS: BrandConfig[] = [
     displayName: "Vuori",
     // vuoriclothing.com is headless Next.js; myshopify URL serves the JSON API
     domain: "vuori-clothing.myshopify.com",
+    websiteDomain: "vuoriclothing.com",
     scraperType: "shopify",
     mensInclusionTags: ["gender::mens"],
     womensExclusionTags: ["gender::womens"],

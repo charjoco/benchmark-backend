@@ -353,12 +353,13 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
 
     const inStock = colorways.some((c) => c.sizes.some((s) => s.available));
 
+    const urlDomain = config.websiteDomain ?? config.domain;
     const isNew = await upsertProduct({
       externalId: String(product.id),
       brand: config.brandKey,
       title: product.title,
       handle: product.handle,
-      productUrl: `https://${config.domain}/products/${product.handle}`,
+      productUrl: `https://${urlDomain}/products/${product.handle}`,
       category,
       colorways,
       inStock,
