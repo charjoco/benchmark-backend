@@ -73,6 +73,44 @@ async function fetchAllProducts(domain: string): Promise<ShopifyProduct[]> {
   return all;
 }
 
+/** Fetch all product IDs from a collection (e.g. new-arrivals) */
+async function fetchCollectionProductIds(domain: string, handle: string): Promise<Set<string>> {
+  const ids = new Set<string>();
+  let page = 1;
+  const limit = 250;
+
+  while (true) {
+    const url = `https://${domain}/collections/${handle}/products.json?limit=${limit}&page=${page}`;
+    try {
+      const res = await axios.get<ShopifyResponse>(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
+        timeout: 20000,
+      });
+
+      const products = res.data?.products;
+      if (!products || products.length === 0) break;
+
+      for (const p of products) ids.add(String(p.id));
+      if (products.length < limit) break;
+      page++;
+      await delay(400, 400);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        console.warn(`[${domain}] /collections/${handle}/products.json returned 404 — skipping new arrivals`);
+        break;
+      }
+      console.warn(`[${domain}] Error fetching new arrivals collection:`, err instanceof Error ? err.message : err);
+      break;
+    }
+  }
+
+  return ids;
+}
+
 function normalizeStr(s: string): string {
   return s.toLowerCase().trim().replace(/\u2019/g, "'");
 }
@@ -213,7 +251,7 @@ function mergeSizes(colorways: Colorway[]): SizeVariant[] {
   return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
-async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
+async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise<boolean> {
   const primary = data.colorways[0];
   if (!primary) return false;
 
@@ -239,7 +277,8 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
-  const isNew = firstSeenAt > fourteenDaysAgo;
+  // forceNew = product is in the brand's new-arrivals collection
+  const isNew = forceNew || firstSeenAt > fourteenDaysAgo;
 
   const now = new Date();
   const priceDroppedAt =
@@ -304,6 +343,15 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   skipped: number;
 }> {
   console.log(`[${config.displayName}] Fetching products...`);
+
+  // Fetch new arrivals collection IDs first (if configured)
+  let newArrivalIds = new Set<string>();
+  if (config.newArrivalsHandle) {
+    console.log(`[${config.displayName}] Fetching new arrivals collection: ${config.newArrivalsHandle}`);
+    newArrivalIds = await fetchCollectionProductIds(config.domain, config.newArrivalsHandle);
+    console.log(`[${config.displayName}] ${newArrivalIds.size} products in new arrivals`);
+  }
+
   const raw = await fetchAllProducts(config.domain);
   console.log(`[${config.displayName}] Found ${raw.length} raw products`);
 
@@ -354,6 +402,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     const inStock = colorways.some((c) => c.sizes.some((s) => s.available));
 
     const urlDomain = config.websiteDomain ?? config.domain;
+    const forceNew = newArrivalIds.has(String(product.id));
     const isNew = await upsertProduct({
       externalId: String(product.id),
       brand: config.brandKey,
@@ -363,7 +412,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       category,
       colorways,
       inStock,
-    });
+    }, forceNew);
 
     if (isNew) upserted++;
   }

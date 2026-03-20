@@ -21,6 +21,8 @@ export interface BrandConfig {
   colorSource?: "option" | "title" | "tag";
   /** When colorSource="tag", the tag prefix to strip (e.g. "color--" → tag "color--navy" → "navy") */
   colorTagPrefix?: string;
+  /** Shopify collection handle for new arrivals — scraped first, products force-marked isNew=true */
+  newArrivalsHandle?: string;
   categoryMappings: Partial<Record<AppCategory, CategoryMapping>>;
 }
 
@@ -123,6 +125,7 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
+    newArrivalsHandle: "new-arrivals",
     // Athleisure lives in "TS KNITS" and "Sweater" types — "Shirt" type is formal dress shirts
     categoryMappings: {
       jackets: { productTypes: ["TS KNITS", "Outerwear", "Jacket", "Coat"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -144,6 +147,7 @@ export const BRANDS: BrandConfig[] = [
     // Rhone is a men's-first brand — no gender tag required; exclude women's by title/type
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "gender:f"],
+    newArrivalsHandle: "mens-new-arrivals",
     colorOptionNames: ["Color"],
     // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks
     categoryMappings: {
@@ -215,6 +219,7 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
+    newArrivalsHandle: "new-arrivals",
     // Color is option1, Size is option2 (e.g. "Cypress / S")
     categoryMappings: {
       jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -237,6 +242,7 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: ["gender::mens"],
     womensExclusionTags: ["gender::womens"],
     colorOptionNames: ["Color"],
+    newArrivalsHandle: "new",
     // Vuori product types: Tops (tees/hoodies/crews/sweaters), Jackets & Hoodies, Shorts, Boardshorts, Pants, Joggers, Sweaters
     categoryMappings: {
       jackets: { productTypes: ["Jackets & Hoodies"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },

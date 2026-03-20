@@ -15,10 +15,13 @@ const CHROME_PATH =
 interface LululemonCategory {
   slug: string;
   category: string;
+  forceNew?: boolean;
 }
 
 // Each entry maps to a specific Lululemon category page (avoids cross-category duplicates)
+// New arrivals page is scraped first so those products get isNew=true forced
 const CATEGORIES: LululemonCategory[] = [
+  { slug: "/c/men-whats-new/n1nrqwzq0cf", category: "shirts", forceNew: true },
   { slug: "/c/men-jackets-and-coats/n1frd1b8igs", category: "jackets" },
   { slug: "/c/men-t-shirts/n16wkm", category: "shirts" },
   { slug: "/c/men-polo-shirts/n1m3oa", category: "shirts" },
@@ -103,7 +106,7 @@ function mergeSizes(colorways: Colorway[]): SizeVariant[] {
   return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
-async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
+async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise<boolean> {
   const primary = data.colorways[0];
   if (!primary) return false;
 
@@ -128,7 +131,7 @@ async function upsertProduct(data: UpsertableProduct): Promise<boolean> {
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
-  const isNew = firstSeenAt > fourteenDaysAgo;
+  const isNew = forceNew || firstSeenAt > fourteenDaysAgo;
 
   const now = new Date();
   const priceDroppedAt =
@@ -261,16 +264,18 @@ export async function scrapeLululemon(): Promise<{
 
   let totalFound = 0;
   let totalUpserted = 0;
+  // Tracks products from new-arrivals page so they get isNew=true on category passes
+  const newArrivalIds = new Set<string>();
 
   try {
-    for (const { slug, category } of CATEGORIES) {
+    for (const { slug, category, forceNew } of CATEGORIES) {
       let pageNum = 1;
       let totalPages = 1;
 
       while (pageNum <= totalPages) {
         const url = `${BASE_URL}${slug}?page=${pageNum}`;
         const page = await context.newPage();
-        console.log(`[${BRAND_DISPLAY}] ${category} p${pageNum}: ${url}`);
+        console.log(`[${BRAND_DISPLAY}] ${forceNew ? "new-arrivals" : category} p${pageNum}: ${url}`);
 
         try {
           await page.goto(url, {
@@ -293,12 +298,20 @@ export async function scrapeLululemon(): Promise<{
           for (const product of pageData.products) {
             if (!product.swatches || product.swatches.length === 0) continue;
 
+            // If this is the new-arrivals pass, just record IDs — don't upsert
+            // (category would be wrong since new-arrivals mixes all types)
+            if (forceNew) {
+              newArrivalIds.add(product.repositoryId);
+              continue;
+            }
+
             // Build all colorways for this product
             const colorways: Colorway[] = product.swatches.map((swatch) =>
               buildColorwayFromSwatch(product, swatch)
             );
 
             const inStock = colorways.some((c) => c.sizes.some((s) => s.available));
+            const isInNewArrivals = newArrivalIds.has(product.repositoryId);
 
             const isNew = await upsertProduct({
               externalId: product.repositoryId,
@@ -309,7 +322,7 @@ export async function scrapeLululemon(): Promise<{
               category,
               colorways,
               inStock,
-            });
+            }, isInNewArrivals);
 
             if (isNew) totalUpserted++;
             totalFound++;
