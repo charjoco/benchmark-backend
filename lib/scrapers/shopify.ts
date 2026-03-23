@@ -137,7 +137,7 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   }
 
   // Title-based exclusion: catch women's items that slip through gender tagging
-  const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong"];
+  const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's"];
   if (womensTitleWords.some((w) => title.includes(w))) return false;
 
   return true;

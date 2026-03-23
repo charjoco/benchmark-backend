@@ -56,7 +56,7 @@ export const BRANDS: BrandConfig[] = [
     domain: "asrv.com",
     scraperType: "shopify",
     mensInclusionTags: [],
-    womensExclusionTags: ["women", "womens", "women's"],
+    womensExclusionTags: ["women", "womens", "women's", "female", "gender:female", "gender:w", "gender:women"],
     colorOptionNames: ["Color", "Colour"],
     // ASRV embeds color in product title (e.g. "Relaxed Tee - Black"), not as a variant option
     colorSource: "title",

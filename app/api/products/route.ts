@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     ...(onSale && { onSale: true }),
     ...(hideSaleInDefaultFeed && !drops && !restocks && !popular && { onSale: false }),
     ...(isNew && { isNew: true }),
-    ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
+    ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } }),
     ...(priceDrops && { priceDroppedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
     ...(restocks && { restockedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
     ...(colorFilter && sizeFilter
