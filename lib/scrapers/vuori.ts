@@ -290,13 +290,21 @@ async function upsertVuoriProduct(data: VuoriUpsertableProduct): Promise<void> {
         externalId: data.externalId,
       },
     },
-    select: { firstSeenAt: true },
+    select: { firstSeenAt: true, price: true, inStock: true },
   });
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
-  const isNew = firstSeenAt > fourteenDaysAgo;
+
+  const now = new Date();
+  const priceDroppedAt =
+    existing && data.price < existing.price ? now : undefined;
+  const isRestocking = !!(existing && !existing.inStock && data.inStock);
+  const restockedAt = isRestocking ? now : undefined;
+
+  // A restock is never a new drop — mutual exclusivity enforced here.
+  const isNew = !isRestocking && firstSeenAt > fourteenDaysAgo;
 
   await prisma.product.upsert({
     where: {
@@ -321,8 +329,8 @@ async function upsertVuoriProduct(data: VuoriUpsertableProduct): Promise<void> {
       sizes: JSON.stringify(data.sizes),
       inStock: data.inStock,
       isNew: true,
-      firstSeenAt: new Date(),
-      lastSeenAt: new Date(),
+      firstSeenAt: now,
+      lastSeenAt: now,
     },
     update: {
       title: data.title,
@@ -335,7 +343,9 @@ async function upsertVuoriProduct(data: VuoriUpsertableProduct): Promise<void> {
       sizes: JSON.stringify(data.sizes),
       inStock: data.inStock,
       isNew,
-      lastSeenAt: new Date(),
+      lastSeenAt: now,
+      ...(priceDroppedAt && { priceDroppedAt }),
+      ...(restockedAt && { restockedAt }),
     },
   });
 }

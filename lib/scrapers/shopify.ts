@@ -277,14 +277,16 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
-  // forceNew = product is in the brand's new-arrivals collection
-  const isNew = forceNew || firstSeenAt > fourteenDaysAgo;
 
   const now = new Date();
   const priceDroppedAt =
     existing && minPrice < existing.price ? now : undefined;
-  const restockedAt =
-    existing && !existing.inStock && data.inStock ? now : undefined;
+  const isRestocking = !!(existing && !existing.inStock && data.inStock);
+  const restockedAt = isRestocking ? now : undefined;
+
+  // A restock is never a new drop — mutual exclusivity enforced here.
+  // forceNew = product is in the brand's new-arrivals collection OR has a new-arrival tag.
+  const isNew = !isRestocking && (forceNew || firstSeenAt > fourteenDaysAgo);
 
   const colourwaysJson = JSON.stringify(data.colorways);
 
@@ -402,7 +404,16 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     const inStock = colorways.some((c) => c.sizes.some((s) => s.available));
 
     const urlDomain = config.websiteDomain ?? config.domain;
-    const forceNew = newArrivalIds.has(String(product.id));
+
+    // Detect new-arrival signals from product tags in addition to the collection check
+    const NEW_ARRIVAL_TAG_PHRASES = new Set([
+      "new", "new arrival", "new arrivals", "new drop", "new drops",
+      "new item", "new items", "new color", "new colour", "new colorway",
+    ]);
+    const hasNewArrivalTag = product.tags.some((t) =>
+      NEW_ARRIVAL_TAG_PHRASES.has(t.toLowerCase().trim())
+    );
+    const forceNew = newArrivalIds.has(String(product.id)) || hasNewArrivalTag;
     const isNew = await upsertProduct({
       externalId: String(product.id),
       brand: config.brandKey,

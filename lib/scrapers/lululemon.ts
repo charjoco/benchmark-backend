@@ -131,13 +131,15 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const firstSeenAt = existing?.firstSeenAt ?? new Date();
-  const isNew = forceNew || firstSeenAt > fourteenDaysAgo;
 
   const now = new Date();
   const priceDroppedAt =
     existing && minPrice < existing.price ? now : undefined;
-  const restockedAt =
-    existing && !existing.inStock && data.inStock ? now : undefined;
+  const isRestocking = !!(existing && !existing.inStock && data.inStock);
+  const restockedAt = isRestocking ? now : undefined;
+
+  // A restock is never a new drop — mutual exclusivity enforced here.
+  const isNew = !isRestocking && (forceNew || firstSeenAt > fourteenDaysAgo);
 
   await prisma.product.upsert({
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
