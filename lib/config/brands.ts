@@ -255,6 +255,73 @@ export const BRANDS: BrandConfig[] = [
       pants: { productTypes: ["Pants", "Joggers"] },
     },
   },
+  {
+    brandKey: "holderness-bourne",
+    displayName: "Holderness & Bourne",
+    domain: "holdernessandbourne.com",
+    scraperType: "shopify",
+    // Men's-only brand — no gender inclusion tags needed; exclude by title/type as safety net
+    mensInclusionTags: [],
+    womensExclusionTags: ["women", "womens", "women's"],
+    colorOptionNames: ["Color"],
+    newArrivalsHandle: "new-arrivals",
+    // H&B product types use "Mens" prefix (e.g. "Mens Layering Sweaters")
+    categoryMappings: {
+      jackets: { productTypes: ["Jacket", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      zips: { productTypes: ["Sweater", "Layer", "Pullover"], titleContains: ["zip", "quarter-zip", "half-zip"] },
+      longsleeve: { productTypes: ["Shirt", "Top"], titleContains: ["long sleeve", "longsleeve"] },
+      shirts: { productTypes: ["Polo", "Shirt", "Top"], titleContains: ["polo", "shirt", "tee", "t-shirt"] },
+      hoodies: { productTypes: ["Hoodie", "Pullover", "Layer"], titleContains: ["hoodie", "pullover"] },
+      sweaters: { productTypes: ["Sweater", "Layer", "Pullover", "Mens Layering Sweaters"], titleContains: ["sweater", "crewneck", "crew", "cardigan", "fleece"] },
+      shorts: { productTypes: ["Short", "Shorts"] },
+      pants: { productTypes: ["Pants", "Pant", "Trouser"] },
+    },
+  },
+  {
+    brandKey: "linksoul",
+    displayName: "Linksoul",
+    domain: "linksoul.com",
+    scraperType: "shopify",
+    // Linksoul is a men's-only brand — all products tagged "men"
+    mensInclusionTags: [],
+    womensExclusionTags: ["women", "womens", "women's"],
+    colorOptionNames: ["Color"],
+    newArrivalsHandle: "new-arrivals",
+    // Linksoul product types: Polo, T-Shirt, Layer, Pant, Short, etc.
+    categoryMappings: {
+      jackets: { productTypes: ["Jacket", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "vest", "windbreaker", "anorak"] },
+      zips: { productTypes: ["Layer", "Pullover"], titleContains: ["zip", "quarter-zip", "half-zip"] },
+      longsleeve: { productTypes: ["T-Shirt", "Shirt", "Layer"], titleContains: ["long sleeve", "longsleeve"] },
+      shirts: { productTypes: ["Polo", "T-Shirt", "Shirt"] },
+      hoodies: { productTypes: ["Layer", "Hoodie", "Pullover"], titleContains: ["hoodie", "pullover"] },
+      sweaters: { productTypes: ["Layer", "Sweater", "Pullover"], titleContains: ["sweater", "crewneck", "crew", "fleece"] },
+      shorts: { productTypes: ["Short", "Shorts"] },
+      pants: { productTypes: ["Pant", "Pants", "Trouser"] },
+    },
+  },
+  {
+    brandKey: "paka",
+    displayName: "Paka",
+    domain: "pakaapparel.com",
+    scraperType: "shopify",
+    // Paka sells both men's and women's — filter by size-guide:mens inclusion tag
+    mensInclusionTags: ["size-guide:mens"],
+    womensExclusionTags: ["gender:women", "womens", "all-womens", "size-guide:womens"],
+    colorOptionNames: ["Color"],
+    // new-arrivals collection exists but may not be well-maintained; rely on badge_New In tag + 14-day window
+    newArrivalsHandle: "new-arrivals",
+    // Paka product types use category hierarchy format (e.g. "Clothing > Tops > Sweaters")
+    categoryMappings: {
+      jackets: { productTypes: ["Jackets", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "vest", "windbreaker"] },
+      zips: { productTypes: ["Hoodies", "Fleece"], titleContains: ["zip", "quarter-zip", "half-zip"] },
+      longsleeve: { productTypes: ["Tops", "Shirts"], titleContains: ["long sleeve", "longsleeve"] },
+      shirts: { productTypes: ["Tops", "T-Shirts", "Polos", "Shirts"] },
+      hoodies: { productTypes: ["Hoodies", "Tops"], titleContains: ["hoodie", "pullover"] },
+      sweaters: { productTypes: ["Sweaters", "Tops", "Fleece"], titleContains: ["sweater", "crew", "crewneck", "fleece"] },
+      shorts: { productTypes: ["Shorts", "Bottoms"], titleContains: ["short"] },
+      pants: { productTypes: ["Pants", "Bottoms", "Joggers"], titleContains: ["pant", "jogger", "trouser"] },
+    },
+  },
 ];
 
 export const BRAND_KEYS = BRANDS.map((b) => b.brandKey);
