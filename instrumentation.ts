@@ -9,6 +9,8 @@ export async function register() {
   const { default: cron } = await import("node-cron");
   const { runAllScrapers } = await import("./lib/scrapers");
   const { prisma } = await import("./lib/prisma");
+  const { fetchUnreadEmails } = await import("./lib/gmail");
+  const { processEmails } = await import("./lib/email-parser");
 
   // Fix product URLs that still point to myshopify.com domains
   const urlFixes: { brand: string; from: string; to: string }[] = [
@@ -32,7 +34,23 @@ export async function register() {
     }
   }
 
-  console.log("[Scheduler] Registering daily scrape cron (3:00 AM)");
+  console.log("[Scheduler] Registering crons: daily scrape (3:00 AM), email poll (every hour)");
+
+  // Poll Gmail inbox every hour for new brand emails
+  cron.schedule("0 * * * *", async () => {
+    console.log("[Email] Polling Gmail inbox...");
+    try {
+      const since = new Date(Date.now() - 65 * 60 * 1000); // last 65 min (slight overlap)
+      const emails = await fetchUnreadEmails(since);
+      if (emails.length > 0) {
+        await processEmails(emails);
+      } else {
+        console.log("[Email] No new emails");
+      }
+    } catch (err) {
+      console.error("[Email] Poll failed:", err instanceof Error ? err.message : err);
+    }
+  });
 
   cron.schedule("0 3 * * *", async () => {
     console.log("[Scheduler] Running daily scrape...");
