@@ -1,5 +1,6 @@
 export type AppCategory =
   | "shirts"
+  | "polos"
   | "longsleeve"
   | "hoodies"
   | "sweaters"

@@ -1,10 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import axios from "axios";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { prisma } from "@/lib/prisma";
 import { BRANDS } from "@/lib/config/brands";
 import { extractColorBucket } from "@/lib/normalize/color";
 import { resolveCategory } from "@/lib/normalize/category";
 import type { RawEmail } from "@/lib/gmail";
+
+const SYSTEM_PROMPT = readFileSync(
+  join(process.cwd(), "lib/ai-system-prompt.md"),
+  "utf-8"
+);
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -59,35 +66,30 @@ async function parseEmailWithClaude(email: RawEmail): Promise<EmailSignal | null
 
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
+    max_tokens: 2048,
+    system: SYSTEM_PROMPT,
     messages: [
       {
         role: "user",
-        content: `You are parsing a brand marketing email for a men's apparel shopping app called Benchmark.
+        content: `Parse this brand marketing email and extract product signals.
 
 Known brands: ${brandList}
 
 Email from: ${email.from}
 Subject: ${email.subject}
-Body (truncated):
+Body:
 ${email.body}
 
-Extract the following as JSON:
+Return ONLY valid JSON in this exact format:
 {
   "brandKey": "<brand key from the known brands list, or null if unrecognized>",
   "signalType": "<one of: new_drop, price_change, restock, unknown>",
   "products": [
-    { "title": "<product name>", "url": "<full product URL from the email, must start with https://>" }
+    { "title": "<product name>", "url": "<full https:// product URL, or null if not found in email>" }
   ]
 }
 
-Rules:
-- signalType is "new_drop" if the email announces new arrivals, new styles, new colors, or new products
-- signalType is "price_change" if the email announces a sale, discount, or price reduction
-- signalType is "restock" if the email says a product is back in stock or back by popular demand
-- Only include products with a valid https:// URL present in the email
-- Only include men's clothing items — no women's, no accessories, no equipment
-- Return only valid JSON, no explanation`,
+Important: If a product URL is not in the email body, set url to null — the system will search the brand website for it. Include all men's clothing products mentioned, even without a URL.`,
       },
     ],
   });
@@ -98,11 +100,38 @@ Rules:
 
   try {
     const parsed = JSON.parse(jsonMatch[0]) as EmailSignal;
-    if (!parsed.brandKey || !parsed.products?.length) return null;
+    if (!parsed.brandKey) return null;
     return parsed;
   } catch {
     return null;
   }
+}
+
+/** Search the brand's website for a product URL by title when none was in the email. */
+async function searchBrandForProductUrl(brandKey: string, productTitle: string): Promise<string | null> {
+  const brand = BRANDS.find((b) => b.brandKey === brandKey);
+  if (!brand) return null;
+
+  const domain = brand.domain;
+  const searchUrl = `https://${domain}/search/suggest.json?q=${encodeURIComponent(productTitle)}&resources[type]=product`;
+
+  try {
+    const res = await axios.get<any>(searchUrl, {
+      timeout: 8000,
+      headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
+    });
+
+    const products = res.data?.resources?.results?.products ?? [];
+    if (products.length > 0) {
+      const websiteDomain = brand.websiteDomain ?? domain;
+      const handle = products[0].handle;
+      return `https://${websiteDomain}/products/${handle}`;
+    }
+  } catch {
+    // Search not available for this brand — skip
+  }
+
+  return null;
 }
 
 /** Attempt to fetch structured product data from a Shopify product URL. */
@@ -272,8 +301,21 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
 
       console.log(`[Email] ${signal.brandKey} | ${signal.signalType} | ${signal.products.length} products`);
 
-      for (const { title, url } of signal.products) {
+      for (const { title, url: rawUrl } of signal.products) {
         try {
+          // If no URL in email, search the brand website
+          let url = rawUrl;
+          if (!url) {
+            console.log(`[Email] No URL for "${title}" — searching ${signal.brandKey} website...`);
+            url = await searchBrandForProductUrl(signal.brandKey, title);
+            if (url) {
+              console.log(`[Email] Found URL via search: ${url}`);
+            } else {
+              console.log(`[Email] Could not find URL for "${title}" — skipping`);
+              continue;
+            }
+          }
+
           const shopifyProduct = await fetchShopifyProduct(url, signal.brandKey);
           if (shopifyProduct) {
             await upsertEmailProduct(signal.brandKey, shopifyProduct, signal.signalType, url);
@@ -281,7 +323,7 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
             console.log(`[Email] Could not fetch Shopify data for: ${title} (${url})`);
           }
         } catch (err) {
-          console.error(`[Email] Error processing product ${url}:`, err instanceof Error ? err.message : err);
+          console.error(`[Email] Error processing product "${title}":`, err instanceof Error ? err.message : err);
         }
       }
     } catch (err) {

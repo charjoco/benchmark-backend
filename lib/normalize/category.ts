@@ -7,6 +7,7 @@ const PRIORITY_ORDER: AppCategory[] = [
   "jackets",
   "zips",
   "longsleeve",
+  "polos",
   "shirts",
   "hoodies",
   "sweaters",
@@ -52,6 +53,7 @@ export function resolveCategory(
 export const CATEGORY_LABELS: Record<AppCategory, string> = {
   jackets: "Jackets & Coats",
   shirts: "Shirts",
+  polos: "Polos",
   longsleeve: "Long Sleeve",
   hoodies: "Hoodies",
   sweaters: "Sweaters",
@@ -62,6 +64,7 @@ export const CATEGORY_LABELS: Record<AppCategory, string> = {
 
 export const ALL_CATEGORIES: AppCategory[] = [
   "jackets",
+  "polos",
   "shirts",
   "longsleeve",
   "hoodies",
