@@ -260,6 +260,30 @@ export const BRANDS: BrandConfig[] = [
     },
   },
   {
+    brandKey: "faherty",
+    displayName: "Faherty",
+    domain: "fahertybrand.com",
+    scraperType: "shopify",
+    // Faherty sells men's and women's — filter by gender:Men tag
+    mensInclusionTags: ["gender:men"],
+    womensExclusionTags: ["gender:women", "gender:womens", "gender:women's"],
+    colorOptionNames: ["Color"],
+    // Uses "status:New" tag for new arrivals rather than a collection
+    newArrivalsHandle: "new-arrivals",
+    // Product types use "Men's" prefix (e.g. "Men's Outerwear", "Men's Shorts")
+    categoryMappings: {
+      jackets: { productTypes: ["Men's Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell", "cpo"] },
+      zips: { productTypes: ["Men's Outerwear", "Men's Knits", "Sweaters"], titleContains: ["zip", "quarter-zip", "half-zip"] },
+      longsleeve: { productTypes: ["Men's Shirts", "Men's Button Ups"], titleContains: ["long sleeve", "longsleeve"] },
+      polos: { productTypes: ["Men's Shirts", "Men's Polos"], titleContains: ["polo"] },
+      shirts: { productTypes: ["Men's Shirts", "Men's Button Ups", "Men's Tees"] },
+      hoodies: { productTypes: ["Men's Outerwear", "Men's Knits"], titleContains: ["hoodie", "pullover"] },
+      sweaters: { productTypes: ["Men's Knits", "Sweaters"], titleContains: ["sweater", "crewneck", "crew", "cardigan", "fleece", "knit"] },
+      shorts: { productTypes: ["Men's Shorts"] },
+      pants: { productTypes: ["Men's Pants", "Men's Bottoms"], titleContains: ["pant", "jogger", "trouser", "chino"] },
+    },
+  },
+  {
     brandKey: "holderness-bourne",
     displayName: "Holderness & Bourne",
     domain: "holdernessandbourne.com",
