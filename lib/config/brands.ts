@@ -262,7 +262,9 @@ export const BRANDS: BrandConfig[] = [
   {
     brandKey: "faherty",
     displayName: "Faherty",
-    domain: "fahertybrand.com",
+    // fahertybrand.com has Cloudflare bot protection — use myshopify URL for scraping
+    domain: "faherty.myshopify.com",
+    websiteDomain: "fahertybrand.com",
     scraperType: "shopify",
     // Faherty sells men's and women's — filter by gender:Men tag
     mensInclusionTags: ["gender:men"],
@@ -277,8 +279,8 @@ export const BRANDS: BrandConfig[] = [
       longsleeve: { productTypes: ["Men's Shirts", "Men's Button Ups"], titleContains: ["long sleeve", "longsleeve"] },
       polos: { productTypes: ["Men's Shirts", "Men's Polos"], titleContains: ["polo"] },
       shirts: { productTypes: ["Men's Shirts", "Men's Button Ups", "Men's Tees"] },
-      hoodies: { productTypes: ["Men's Outerwear", "Men's Knits"], titleContains: ["hoodie", "pullover"] },
-      sweaters: { productTypes: ["Men's Knits", "Sweaters"], titleContains: ["sweater", "crewneck", "crew", "cardigan", "fleece", "knit"] },
+      hoodies: { productTypes: ["Men's Outerwear", "Men's Knits", "Men's Hoodies & Pullovers"], titleContains: ["hoodie", "pullover"] },
+      sweaters: { productTypes: ["Men's Knits", "Men's Sweaters", "Sweaters"], titleContains: ["sweater", "crewneck", "crew", "cardigan", "fleece", "knit"] },
       shorts: { productTypes: ["Men's Shorts"] },
       pants: { productTypes: ["Men's Pants", "Men's Bottoms"], titleContains: ["pant", "jogger", "trouser", "chino"] },
     },
