@@ -304,7 +304,7 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
       for (const { title, url: rawUrl } of signal.products) {
         try {
           // If no URL in email, search the brand website
-          let url = rawUrl;
+          let url: string | null = rawUrl ?? null;
           if (!url) {
             console.log(`[Email] No URL for "${title}" — searching ${signal.brandKey} website...`);
             url = await searchBrandForProductUrl(signal.brandKey, title);
@@ -316,7 +316,7 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
             }
           }
 
-          const shopifyProduct = await fetchShopifyProduct(url, signal.brandKey);
+          const shopifyProduct = await fetchShopifyProduct(url!, signal.brandKey);
           if (shopifyProduct) {
             await upsertEmailProduct(signal.brandKey, shopifyProduct, signal.signalType, url);
           } else {
