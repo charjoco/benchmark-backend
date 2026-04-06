@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { BRANDS } from "@/lib/config/brands";
 import { extractColorBucket } from "@/lib/normalize/color";
 import { resolveCategory } from "@/lib/normalize/category";
+import { scrapeShopifyBrand } from "@/lib/scrapers/shopify";
 import type { RawEmail } from "@/lib/gmail";
 
 const SYSTEM_PROMPT = readFileSync(
@@ -301,6 +302,8 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
 
       console.log(`[Email] ${signal.brandKey} | ${signal.signalType} | ${signal.products.length} products`);
 
+      let anyProductProcessed = false;
+
       for (const { title, url: rawUrl } of signal.products) {
         try {
           // If no URL in email, search the brand website
@@ -311,7 +314,7 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
             if (url) {
               console.log(`[Email] Found URL via search: ${url}`);
             } else {
-              console.log(`[Email] Could not find URL for "${title}" — skipping`);
+              console.log(`[Email] Could not find URL for "${title}" — will fall back to full scrape`);
               continue;
             }
           }
@@ -319,11 +322,26 @@ export async function processEmails(emails: RawEmail[]): Promise<void> {
           const shopifyProduct = await fetchShopifyProduct(url!, signal.brandKey);
           if (shopifyProduct) {
             await upsertEmailProduct(signal.brandKey, shopifyProduct, signal.signalType, url);
+            anyProductProcessed = true;
           } else {
             console.log(`[Email] Could not fetch Shopify data for: ${title} (${url})`);
           }
         } catch (err) {
           console.error(`[Email] Error processing product "${title}":`, err instanceof Error ? err.message : err);
+        }
+      }
+
+      // If a new_drop email came in but we couldn't find any specific product URLs,
+      // run the full brand scraper so we catch any new arrivals the email announced.
+      if (!anyProductProcessed && signal.signalType === "new_drop") {
+        const brandConfig = BRANDS.find((b) => b.brandKey === signal.brandKey);
+        if (brandConfig && brandConfig.scraperType === "shopify") {
+          console.log(`[Email] Falling back to full scrape for ${signal.brandKey} after new_drop email...`);
+          try {
+            await scrapeShopifyBrand(brandConfig);
+          } catch (err) {
+            console.error(`[Email] Fallback scrape failed for ${signal.brandKey}:`, err instanceof Error ? err.message : err);
+          }
         }
       }
     } catch (err) {

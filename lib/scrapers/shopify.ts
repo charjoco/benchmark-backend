@@ -130,7 +130,7 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   if (config.womensExclusionTags.length > 0) {
     const hasWomensTag = config.womensExclusionTags.some(
       (t) =>
-        tags.includes(normalizeStr(t)) ||
+        tags.some((tag) => tag.includes(normalizeStr(t))) ||
         type.includes(normalizeStr(t))
     );
     if (hasWomensTag) return false;
@@ -139,6 +139,9 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   // Title-based exclusion: catch women's items that slip through gender tagging
   const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's"];
   if (womensTitleWords.some((w) => title.includes(w))) return false;
+
+  // Brand-specific title prefix exclusion (e.g. ASRV women's line uses "W0" prefix)
+  if (config.womensTitlePrefixes && config.womensTitlePrefixes.some((p) => product.title.startsWith(p))) return false;
 
   return true;
 }

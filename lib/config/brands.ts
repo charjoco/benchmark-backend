@@ -16,6 +16,8 @@ export interface BrandConfig {
   scraperType: "shopify" | "playwright";
   mensInclusionTags: string[];
   womensExclusionTags: string[];
+  /** Title prefixes that identify women's products (e.g. ASRV uses "W0" for women's line) */
+  womensTitlePrefixes?: string[];
   colorOptionNames: string[];
   /** "option" (default): color from Shopify variant option. "title": extract color from product title after last " - ". "tag": extract from a product tag with the given colorTagPrefix */
   colorSource?: "option" | "title" | "tag";
@@ -57,7 +59,9 @@ export const BRANDS: BrandConfig[] = [
     domain: "asrv.com",
     scraperType: "shopify",
     mensInclusionTags: [],
-    womensExclusionTags: ["women", "womens", "women's", "female", "gender:female", "gender:w", "gender:women"],
+    womensExclusionTags: ["women", "womens", "women's", "female", "gender:female", "gender:w", "gender:women", "WOMENS"],
+    // ASRV women's products use "W0XX." title prefix; men's limited use "WN'XX" (not excluded)
+    womensTitlePrefixes: ["W0"],
     colorOptionNames: ["Color", "Colour"],
     // ASRV embeds color in product title (e.g. "Relaxed Tee - Black"), not as a variant option
     colorSource: "title",
