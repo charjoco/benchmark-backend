@@ -148,12 +148,13 @@ export const BRANDS: BrandConfig[] = [
   {
     brandKey: "rhone",
     displayName: "Rhone",
-    // Try main domain first; if Cloudflare blocks it the scraper logs the error
-    domain: "www.rhone.com",
+    // www.rhone.com has Cloudflare bot protection — use myshopify URL for scraping
+    domain: "rhone.myshopify.com",
+    websiteDomain: "rhone.com",
     scraperType: "shopify",
     // Rhone is a men's-first brand — no gender tag required; exclude women's by title/type
     mensInclusionTags: [],
-    womensExclusionTags: ["women", "womens", "women's", "gender:f"],
+    womensExclusionTags: ["women", "womens", "women's", "gender:f", "all-women"],
     newArrivalsHandle: "mens-new-arrivals",
     colorOptionNames: ["Color"],
     // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks

@@ -246,9 +246,12 @@ export async function scrapeLululemon(): Promise<{
     headless: true,
     ...(CHROME_PATH && { executablePath: CHROME_PATH }),
     args: [
-      "--disable-blink-features=AutomationControlled",
       "--no-sandbox",
       "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-zygote",
+      "--single-process",
     ],
   });
 

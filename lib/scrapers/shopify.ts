@@ -2,6 +2,7 @@ import axios from "axios";
 import { prisma } from "@/lib/prisma";
 import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
 import { resolveCategory } from "@/lib/normalize/category";
+import { isWomensProductImage } from "@/lib/normalize/vision";
 import type { BrandConfig } from "@/lib/config/brands";
 import type { UpsertableProduct, Colorway, SizeVariant } from "@/types";
 
@@ -137,8 +138,10 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   }
 
   // Title-based exclusion: catch women's items that slip through gender tagging
-  const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's"];
+  const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's", "women's"];
   if (womensTitleWords.some((w) => title.includes(w))) return false;
+  // Also exclude if title starts with "women" (catches "Women's Flow Short", "Women's Everyday Pant", etc.)
+  if (title.startsWith("women")) return false;
 
   // Brand-specific title prefix exclusion (e.g. ASRV women's line uses "W0" prefix)
   if (config.womensTitlePrefixes && config.womensTitlePrefixes.some((p) => product.title.startsWith(p))) return false;
@@ -276,6 +279,15 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
     select: { firstSeenAt: true, price: true, inStock: true },
   });
+
+  // Vision screening: for brand-new products only, reject if Claude detects a woman in the image
+  if (!existing && primary.imageUrl) {
+    const isWomens = await isWomensProductImage(primary.imageUrl);
+    if (isWomens) {
+      console.log(`[Vision] Excluded women's product: "${data.title}" (${data.brand})`);
+      return false;
+    }
+  }
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);

@@ -34,6 +34,23 @@ export async function register() {
     }
   }
 
+  // Remove women's products that slipped through earlier filter bugs
+  const womensKeywords = ["women's", "womens", "women's", "skirt", "rally skirt"];
+  const womensConditions = womensKeywords.map((kw) => ({ title: { contains: kw } }));
+  // Also remove by title prefix "Women"
+  const womensPrefixDelete = await prisma.product.deleteMany({
+    where: { title: { startsWith: "Women" } },
+  });
+  if (womensPrefixDelete.count > 0) {
+    console.log(`[Migration] Deleted ${womensPrefixDelete.count} women's products (title prefix)`);
+  }
+  const womensKeywordDelete = await prisma.product.deleteMany({
+    where: { OR: womensConditions },
+  });
+  if (womensKeywordDelete.count > 0) {
+    console.log(`[Migration] Deleted ${womensKeywordDelete.count} women's products (keyword match)`);
+  }
+
   console.log("[Scheduler] Registering crons: daily scrape (3:00 AM), email poll (every hour)");
 
   // Poll Gmail inbox every hour for new brand emails
