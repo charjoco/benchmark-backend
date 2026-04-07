@@ -260,7 +260,7 @@ function mergeSizes(colorways: Colorway[]): SizeVariant[] {
   return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
-async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise<boolean> {
+async function upsertProduct(data: UpsertableProduct, forceNew = false, isBestseller = false): Promise<boolean> {
   const primary = data.colorways[0];
   if (!primary) return false;
 
@@ -330,6 +330,7 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew: true,
+      isBestseller,
       firstSeenAt: now,
       lastSeenAt: now,
     },
@@ -348,6 +349,7 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false): Promise
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew,
+      isBestseller,
       lastSeenAt: now,
       ...(priceDroppedAt && { priceDroppedAt }),
       ...(restockedAt && { restockedAt }),
@@ -370,6 +372,13 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     console.log(`[${config.displayName}] Fetching new arrivals collection: ${config.newArrivalsHandle}`);
     newArrivalIds = await fetchCollectionProductIds(config.domain, config.newArrivalsHandle);
     console.log(`[${config.displayName}] ${newArrivalIds.size} products in new arrivals`);
+  }
+
+  // Fetch bestseller collection IDs (if configured)
+  let popularIds = new Set<string>();
+  if (config.popularHandle) {
+    popularIds = await fetchCollectionProductIds(config.domain, config.popularHandle);
+    console.log(`[${config.displayName}] ${popularIds.size} products in bestsellers`);
   }
 
   const raw = await fetchAllProducts(config.domain);
@@ -432,6 +441,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       NEW_ARRIVAL_TAG_PHRASES.has(t.toLowerCase().trim())
     );
     const forceNew = newArrivalIds.has(String(product.id)) || hasNewArrivalTag;
+    const isBestseller = popularIds.has(String(product.id));
     const isNew = await upsertProduct({
       externalId: String(product.id),
       brand: config.brandKey,
@@ -441,7 +451,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       category,
       colorways,
       inStock,
-    }, forceNew);
+    }, forceNew, isBestseller);
 
     if (isNew) upserted++;
   }

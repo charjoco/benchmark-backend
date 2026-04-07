@@ -76,6 +76,7 @@ export interface ProductRow {
   sizes: SizeVariant[];     // union of all sizes
   inStock: boolean;
   isNew: boolean;
+  isBestseller: boolean;
   firstSeenAt: Date;
   lastSeenAt: Date;
   updatedAt: Date;

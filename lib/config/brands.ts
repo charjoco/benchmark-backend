@@ -28,6 +28,8 @@ export interface BrandConfig {
   colorTagPrefix?: string;
   /** Shopify collection handle for new arrivals — scraped first, products force-marked isNew=true */
   newArrivalsHandle?: string;
+  /** Shopify collection handle for bestsellers — products in this collection are marked isBestseller=true */
+  popularHandle?: string;
   categoryMappings: Partial<Record<AppCategory, CategoryMapping>>;
 }
 
@@ -45,6 +47,8 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women's"],
     colorOptionNames: ["Color"],
+    newArrivalsHandle: "mens-new-releases",
+    popularHandle: "best-sellers",
     categoryMappings: {
       // productTypes match BYLT's type strings; type check uses .includes() so "Men's-Tops-Outerwear".includes("Outerwear") works
       jackets: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -70,6 +74,8 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color", "Colour"],
     // ASRV embeds color in product title (e.g. "Relaxed Tee - Black"), not as a variant option
     colorSource: "title",
+    newArrivalsHandle: "latest-drops",
+    popularHandle: "bestsellers",
     categoryMappings: {
       // longsleeve must come before shirts in resolution; titleContains restricts to LS products
       jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -96,6 +102,8 @@ export const BRANDS: BrandConfig[] = [
     // BM color is stored in a "color--{name}" product tag (no Color variant option)
     colorSource: "tag",
     colorTagPrefix: "color--",
+    newArrivalsHandle: "mens-new-arrivals",
+    popularHandle: "best-sellers",
     categoryMappings: {
       jackets: { productTypes: ["Outerwear", "Jackets"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       longsleeve: { productTypes: ["Shirts", "Tees"], titleContains: ["long sleeve", "longsleeve"] },
@@ -116,6 +124,7 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: ["gender:mens"],
     womensExclusionTags: ["gender:womens", "gender:women"],
     colorOptionNames: ["Colour", "Color"],
+    newArrivalsHandle: "mens-latest",
     // RC uses type="MENS" for everything — categories come from product title only
     categoryMappings: {
       jackets: { productTypes: ["MENS"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -161,6 +170,7 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "gender:f", "all-women"],
     newArrivalsHandle: "mens-new-arrivals",
+    popularHandle: "mens-best-sellers",
     colorOptionNames: ["Color"],
     // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks
     categoryMappings: {
@@ -183,6 +193,8 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
+    newArrivalsHandle: "new-arrivals",
+    popularHandle: "bestsellers",
     categoryMappings: {
       jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
       shirts: { productTypes: ["T-Shirts", "Short Sleeve"], tags: ["short sleeve", "t-shirt", "tee"] },
@@ -213,6 +225,8 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
+    newArrivalsHandle: "new-arrivals",
+    popularHandle: "best-sellers",
     // product_type uses full names like "Interval Shirt", "Tactical Short" — keywords match via .includes()
     categoryMappings: {
       jackets: { productTypes: ["jacket", "coat", "vest", "shell", "anorak", "windbreaker"] },
@@ -234,6 +248,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    popularHandle: "mens-best-sellers",
     // Color is option1, Size is option2 (e.g. "Cypress / S")
     categoryMappings: {
       jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -257,6 +272,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["gender::womens"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new",
+    popularHandle: "bestsellers",
     // Vuori product types: Tops (tees/hoodies/crews/sweaters), Jackets & Hoodies, Shorts, Boardshorts, Pants, Joggers, Sweaters
     categoryMappings: {
       jackets: { productTypes: ["Jackets & Hoodies"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -280,8 +296,8 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: ["gender:men"],
     womensExclusionTags: ["gender:women", "gender:womens", "gender:women's"],
     colorOptionNames: ["Color"],
-    // Uses "status:New" tag for new arrivals rather than a collection
-    newArrivalsHandle: "new-arrivals",
+    newArrivalsHandle: "mens-new-arrivals",
+    popularHandle: "mens-best-sellers",
     // Product types use "Men's" prefix (e.g. "Men's Outerwear", "Men's Shorts")
     categoryMappings: {
       jackets: { productTypes: ["Men's Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell", "cpo"] },
@@ -305,6 +321,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    popularHandle: "best-sellers",
     // H&B product types use "Mens" prefix (e.g. "Mens Layering Sweaters")
     categoryMappings: {
       jackets: { productTypes: ["Jacket", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -327,6 +344,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    popularHandle: "best-sellers",
     // Linksoul product types: Polo, T-Shirt, Layer, Pant, Short, etc.
     categoryMappings: {
       jackets: { productTypes: ["Jacket", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "vest", "windbreaker", "anorak"] },
@@ -348,8 +366,8 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: ["size-guide:mens"],
     womensExclusionTags: ["gender:women", "womens", "all-womens", "size-guide:womens"],
     colorOptionNames: ["Color"],
-    // new-arrivals collection exists but may not be well-maintained; rely on badge_New In tag + 14-day window
-    newArrivalsHandle: "new-arrivals",
+    newArrivalsHandle: "mens-new-arrivals",
+    popularHandle: "best-sellers",
     // Paka product types use category hierarchy format (e.g. "Clothing > Tops > Sweaters")
     categoryMappings: {
       jackets: { productTypes: ["Jackets", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "vest", "windbreaker"] },

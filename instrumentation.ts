@@ -56,7 +56,7 @@ export async function register() {
     console.log(`[Migration] Deleted ${womensKeywordDelete.count} women's products (keyword match)`);
   }
 
-  console.log("[Scheduler] Registering crons: daily scrape (3:00 AM), email poll (every hour)");
+  console.log("[Scheduler] Registering crons: scrape (3AM + 11AM CST), email poll (every hour)");
 
   // Poll Gmail inbox every hour for new brand emails
   cron.schedule("0 * * * *", async () => {
@@ -74,12 +74,23 @@ export async function register() {
     }
   });
 
-  cron.schedule("0 3 * * *", async () => {
-    console.log("[Scheduler] Running daily scrape...");
+  // 3:00 AM CST = 09:00 UTC
+  cron.schedule("0 9 * * *", async () => {
+    console.log("[Scheduler] Running 3AM CST scrape...");
     try {
       await runAllScrapers();
     } catch (err) {
-      console.error("[Scheduler] Daily scrape failed:", err);
+      console.error("[Scheduler] 3AM scrape failed:", err);
+    }
+  });
+
+  // 11:00 AM CST = 17:00 UTC
+  cron.schedule("0 17 * * *", async () => {
+    console.log("[Scheduler] Running 11AM CST scrape...");
+    try {
+      await runAllScrapers();
+    } catch (err) {
+      console.error("[Scheduler] 11AM scrape failed:", err);
     }
   });
 
