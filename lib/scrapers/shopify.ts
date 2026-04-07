@@ -260,13 +260,13 @@ function mergeSizes(colorways: Colorway[]): SizeVariant[] {
   return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
-async function upsertProduct(data: UpsertableProduct, forceNew = false, isBestseller = false): Promise<boolean> {
+async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSale = false, isBestseller = false): Promise<boolean> {
   const primary = data.colorways[0];
   if (!primary) return false;
 
   // Derived aggregate fields
   const minPrice = Math.min(...data.colorways.map((c) => c.price));
-  const anyOnSale = data.colorways.some((c) => c.onSale);
+  const anyOnSale = forceSale || data.colorways.some((c) => c.onSale);
   // compareAtPrice: use the highest original price when on sale
   const comparePrices = data.colorways
     .map((c) => c.compareAtPrice)
@@ -374,6 +374,13 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     console.log(`[${config.displayName}] ${newArrivalIds.size} products in new arrivals`);
   }
 
+  // Fetch sale collection IDs (if configured) — fallback for brands that don't set compare_at_price
+  let saleIds = new Set<string>();
+  if (config.saleHandle) {
+    saleIds = await fetchCollectionProductIds(config.domain, config.saleHandle);
+    console.log(`[${config.displayName}] ${saleIds.size} products in sale`);
+  }
+
   // Fetch bestseller collection IDs (if configured)
   let popularIds = new Set<string>();
   if (config.popularHandle) {
@@ -441,6 +448,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       NEW_ARRIVAL_TAG_PHRASES.has(t.toLowerCase().trim())
     );
     const forceNew = newArrivalIds.has(String(product.id)) || hasNewArrivalTag;
+    const forceSale = saleIds.has(String(product.id));
     const isBestseller = popularIds.has(String(product.id));
     const isNew = await upsertProduct({
       externalId: String(product.id),
@@ -451,7 +459,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       category,
       colorways,
       inStock,
-    }, forceNew, isBestseller);
+    }, forceNew, forceSale, isBestseller);
 
     if (isNew) upserted++;
   }

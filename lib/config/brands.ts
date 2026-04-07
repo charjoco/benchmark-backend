@@ -28,6 +28,8 @@ export interface BrandConfig {
   colorTagPrefix?: string;
   /** Shopify collection handle for new arrivals — scraped first, products force-marked isNew=true */
   newArrivalsHandle?: string;
+  /** Shopify collection handle for sale/clearance — used as fallback when compare_at_price isn't set */
+  saleHandle?: string;
   /** Shopify collection handle for bestsellers — products in this collection are marked isBestseller=true */
   popularHandle?: string;
   categoryMappings: Partial<Record<AppCategory, CategoryMapping>>;
@@ -48,6 +50,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-releases",
+    saleHandle: "mens-last-call",
     popularHandle: "best-sellers",
     categoryMappings: {
       // productTypes match BYLT's type strings; type check uses .includes() so "Men's-Tops-Outerwear".includes("Outerwear") works
@@ -75,6 +78,7 @@ export const BRANDS: BrandConfig[] = [
     // ASRV embeds color in product title (e.g. "Relaxed Tee - Black"), not as a variant option
     colorSource: "title",
     newArrivalsHandle: "latest-drops",
+    saleHandle: "surplus-sale",
     popularHandle: "bestsellers",
     categoryMappings: {
       // longsleeve must come before shirts in resolution; titleContains restricts to LS products
@@ -125,6 +129,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["gender:womens", "gender:women"],
     colorOptionNames: ["Colour", "Color"],
     newArrivalsHandle: "mens-latest",
+    saleHandle: "mens-sale",
     // RC uses type="MENS" for everything — categories come from product title only
     categoryMappings: {
       jackets: { productTypes: ["MENS"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -170,6 +175,7 @@ export const BRANDS: BrandConfig[] = [
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "gender:f", "all-women"],
     newArrivalsHandle: "mens-new-arrivals",
+    saleHandle: "sale",
     popularHandle: "mens-best-sellers",
     colorOptionNames: ["Color"],
     // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks
@@ -194,6 +200,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    saleHandle: "sale",
     popularHandle: "bestsellers",
     categoryMappings: {
       jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
@@ -226,6 +233,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    saleHandle: "surplus-sale",
     popularHandle: "best-sellers",
     // product_type uses full names like "Interval Shirt", "Tactical Short" — keywords match via .includes()
     categoryMappings: {
@@ -248,6 +256,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    saleHandle: "mens-sale",
     popularHandle: "mens-best-sellers",
     // Color is option1, Size is option2 (e.g. "Cypress / S")
     categoryMappings: {
@@ -272,6 +281,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["gender::womens"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new",
+    saleHandle: "sale",
     popularHandle: "bestsellers",
     // Vuori product types: Tops (tees/hoodies/crews/sweaters), Jackets & Hoodies, Shorts, Boardshorts, Pants, Joggers, Sweaters
     categoryMappings: {
@@ -297,6 +307,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["gender:women", "gender:womens", "gender:women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
+    saleHandle: "mens-sale",
     popularHandle: "mens-best-sellers",
     // Product types use "Men's" prefix (e.g. "Men's Outerwear", "Men's Shorts")
     categoryMappings: {
@@ -344,6 +355,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "new-arrivals",
+    saleHandle: "sale",
     popularHandle: "best-sellers",
     // Linksoul product types: Polo, T-Shirt, Layer, Pant, Short, etc.
     categoryMappings: {
