@@ -18,6 +18,9 @@ export interface BrandConfig {
   womensExclusionTags: string[];
   /** Title prefixes that identify women's products (e.g. ASRV uses "W0" for women's line) */
   womensTitlePrefixes?: string[];
+  /** When true, product_type must contain "men" (case-insensitive) to be included.
+   *  Use for brands like BYLT where all men's products have "Men's-" in the type. */
+  requireMensProductType?: boolean;
   colorOptionNames: string[];
   /** "option" (default): color from Shopify variant option. "title": extract color from product title after last " - ". "tag": extract from a product tag with the given colorTagPrefix */
   colorSource?: "option" | "title" | "tag";
@@ -37,6 +40,8 @@ export const BRANDS: BrandConfig[] = [
     websiteDomain: "byltbasics.com",
     scraperType: "shopify",
     // BYLT embeds gender in product_type (e.g. "Men's-Tops-Short-Sleeves")
+    // All men's types start with "Men's-" or "Mens-" — enforce this as a hard rule
+    requireMensProductType: true,
     mensInclusionTags: [],
     womensExclusionTags: ["women's"],
     colorOptionNames: ["Color"],

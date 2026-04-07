@@ -121,6 +121,9 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   const type = normalizeStr(product.product_type);
   const title = product.title.toLowerCase();
 
+  // Hard rule: if brand embeds gender in product_type, require "men" to be present
+  if (config.requireMensProductType && !type.includes("men")) return false;
+
   if (config.mensInclusionTags.length > 0) {
     const hasInclusionTag = config.mensInclusionTags.some((t) =>
       tags.includes(t.toLowerCase())
