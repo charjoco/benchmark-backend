@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npx playwright install chromium --with-deps && next build",
+    "build": "prisma generate && prisma db push && npx playwright install chromium --with-deps && next build",
     "start": "next start",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
