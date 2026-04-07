@@ -34,28 +34,6 @@ export async function register() {
     }
   }
 
-  // Remove women's products that slipped through earlier filter bugs
-  // Wipe all BYLT and Rhone products — they'll be re-scraped cleanly with the new type filter
-  const byltWipe = await prisma.product.deleteMany({ where: { brand: "bylt" } });
-  if (byltWipe.count > 0) console.log(`[Migration] Wiped ${byltWipe.count} BYLT products for clean rescrape`);
-  const rhoneWipe = await prisma.product.deleteMany({ where: { brand: "rhone" } });
-  if (rhoneWipe.count > 0) console.log(`[Migration] Wiped ${rhoneWipe.count} Rhone products for clean rescrape`);
-
-  // Remove any remaining women's products by title prefix
-  const womensPrefixDelete = await prisma.product.deleteMany({
-    where: { title: { startsWith: "Women" } },
-  });
-  if (womensPrefixDelete.count > 0) {
-    console.log(`[Migration] Deleted ${womensPrefixDelete.count} women's products (title prefix)`);
-  }
-  // Remove by keyword
-  const womensKeywordDelete = await prisma.product.deleteMany({
-    where: { OR: [{ title: { contains: "women's" } }, { title: { contains: "skirt" } }, { title: { contains: "Rally Skirt" } }] },
-  });
-  if (womensKeywordDelete.count > 0) {
-    console.log(`[Migration] Deleted ${womensKeywordDelete.count} women's products (keyword match)`);
-  }
-
   console.log("[Scheduler] Registering crons: scrape (10AM + 4PM UTC), email poll (every hour)");
 
   // Poll Gmail inbox every hour for new brand emails
