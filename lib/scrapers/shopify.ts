@@ -141,7 +141,7 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   }
 
   // Title-based exclusion: catch women's items that slip through gender tagging
-  const womensTitleWords = ["skort", "skirt", "dress", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's", "women's"];
+  const womensTitleWords = ["skort", "skirt", "dress", "romper", "jumpsuit", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's", "women\u2019s"];
   if (womensTitleWords.some((w) => title.includes(w))) return false;
   // Also exclude if title starts with "women" (catches "Women's Flow Short", "Women's Everyday Pant", etc.)
   if (title.startsWith("women")) return false;
@@ -394,6 +394,9 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   const menProducts = raw.filter((p) => isMensProduct(p, config));
   console.log(`[${config.displayName}] ${menProducts.length} after men's filter`);
 
+  // Build the set of valid men's product IDs for stale cleanup later
+  const validMensExternalIds = new Set(menProducts.map((p) => String(p.id)));
+
   let upserted = 0;
   let skipped = 0;
 
@@ -464,8 +467,27 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     if (isNew) upserted++;
   }
 
+  // Remove stale/invalid products — anything in the DB for this brand that didn't pass
+  // the men's filter gets deleted. This clears out women's items that slipped in previously
+  // and handles discontinued products.
+  const existingIds = await prisma.product.findMany({
+    where: { brand: config.brandKey },
+    select: { id: true, externalId: true, title: true },
+  });
+
+  const toDelete = existingIds.filter((p) => !validMensExternalIds.has(p.externalId));
+  if (toDelete.length > 0) {
+    await prisma.product.deleteMany({
+      where: { id: { in: toDelete.map((p) => p.id) } },
+    });
+    for (const p of toDelete) {
+      console.log(`[${config.displayName}] Removed stale product: "${p.title}"`);
+    }
+    console.log(`[${config.displayName}] Removed ${toDelete.length} stale products`);
+  }
+
   console.log(
-    `[${config.displayName}] Done. ${upserted} new, ${skipped} skipped`
+    `[${config.displayName}] Done. ${upserted} new, ${skipped} skipped, ${toDelete.length} removed`
   );
   return { found: raw.length, upserted, skipped };
 }

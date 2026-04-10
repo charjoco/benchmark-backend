@@ -421,9 +421,10 @@ export const BRANDS: BrandConfig[] = [
     displayName: "TravisMathew",
     domain: "travismathew.com",
     scraperType: "shopify",
-    // No gender tags — filter by excluding women's product types and scraping mens-specific collections
+    // No gender tags — exclude women's-only product types explicitly (Dress, Romper, Skort, Jumpsuit)
+    // Shared types (Active Top, Tee, etc.) are further filtered by title-based checks in isMensProduct
     mensInclusionTags: [],
-    womensExclusionTags: ["women", "womens", "women's"],
+    womensExclusionTags: ["women", "womens", "women's", "dress", "romper", "skort", "jumpsuit"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-sale",
