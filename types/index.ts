@@ -49,6 +49,8 @@ export interface Colorway {
   compareAtPrice: number | null;
   onSale: boolean;
   sizes: SizeVariant[];
+  /** ISO timestamp when this colorway was first seen */
+  firstSeenAt?: string;
   /** Per-colorway URL if it differs from the product's base URL */
   productUrl?: string;
 }
