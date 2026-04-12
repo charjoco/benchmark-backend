@@ -2,7 +2,7 @@ import axios from "axios";
 import { prisma } from "@/lib/prisma";
 import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
 import { resolveCategory } from "@/lib/normalize/category";
-import { isWomensProductImage } from "@/lib/normalize/vision";
+import { isWomensProductImage, classifyCategoryViaVision } from "@/lib/normalize/vision";
 import type { BrandConfig } from "@/lib/config/brands";
 import type { UpsertableProduct, Colorway, SizeVariant } from "@/types";
 
@@ -280,7 +280,7 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
 
   const existing = await prisma.product.findUnique({
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
-    select: { firstSeenAt: true, price: true, inStock: true },
+    select: { firstSeenAt: true, price: true, inStock: true, colorways: true },
   });
 
   // Vision screening: for brand-new products only, reject if Claude detects a woman in the image
@@ -301,9 +301,25 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
     existing && minPrice < existing.price ? now : undefined;
   // A restock is never a new drop — mutual exclusivity enforced here.
   const isRestocking = !!(existing && !existing.inStock && data.inStock);
-  const isNew = !isRestocking && (forceNew || firstSeenAt > fourteenDaysAgo);
 
-  const colourwaysJson = JSON.stringify(data.colorways);
+  // Per-colorway firstSeenAt: carry forward existing timestamps, stamp new colorways
+  let hasNewColorway = false;
+  const existingColorways: Array<{ colorName: string; firstSeenAt?: string }> = existing
+    ? (() => { try { return JSON.parse(existing.colorways); } catch { return []; } })()
+    : [];
+  const existingColorNames = new Set(existingColorways.map((c) => c.colorName));
+  const colorwaysWithTimestamps = data.colorways.map((cw) => {
+    if (!existingColorNames.has(cw.colorName)) {
+      hasNewColorway = true;
+      return { ...cw, firstSeenAt: now.toISOString() };
+    }
+    const prev = existingColorways.find((e) => e.colorName === cw.colorName);
+    return { ...cw, firstSeenAt: prev?.firstSeenAt ?? now.toISOString() };
+  });
+
+  const isNew = !isRestocking && (forceNew || firstSeenAt > fourteenDaysAgo || hasNewColorway);
+
+  const colourwaysJson = JSON.stringify(colorwaysWithTimestamps);
 
   await prisma.product.upsert({
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
@@ -388,14 +404,21 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   let skipped = 0;
 
   for (const product of menProducts) {
-    const category = resolveCategory(product.product_type, product.tags, config, product.title);
+    let category = resolveCategory(product.product_type, product.tags, config, product.title);
 
     if (!category) {
-      console.debug(
-        `[${config.displayName}] Skipping "${product.title}" (type="${product.product_type}", tags=${product.tags.slice(0, 3).join(",")})`
-      );
-      skipped++;
-      continue;
+      // Rules didn't match — try Claude vision as fallback
+      const primaryImage = product.images[0]?.src ?? "";
+      category = await classifyCategoryViaVision(primaryImage, product.title, product.product_type);
+      if (category) {
+        console.log(`[${config.displayName}] Vision classified "${product.title}" → ${category}`);
+      } else {
+        console.debug(
+          `[${config.displayName}] Skipping "${product.title}" (type="${product.product_type}", tags=${product.tags.slice(0, 3).join(",")})`
+        );
+        skipped++;
+        continue;
+      }
     }
 
     const colorGroups = groupVariantsByColor(product, config);

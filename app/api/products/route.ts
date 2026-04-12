@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     inStock: true,
     ...(category && { category }),
     ...(onSale && { onSale: true }),
-    ...(hideSaleInDefaultFeed && !drops && { onSale: false }),
+    ...(hideSaleInDefaultFeed && !drops && { OR: [{ onSale: false }, { isNew: true }] }),
     ...(isNew && { isNew: true }),
     ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } }),
     ...(priceDrops && { priceDroppedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
