@@ -32,11 +32,9 @@ model Product {
   sizes          String   @default("[]")
   inStock        Boolean   @default(true)
   isNew          Boolean   @default(false)
-  isBestseller   Boolean   @default(false)
   firstSeenAt    DateTime  @default(now())
   lastSeenAt     DateTime  @default(now())
   priceDroppedAt DateTime?
-  restockedAt    DateTime?
   updatedAt      DateTime  @updatedAt
 
   @@unique([brand, externalId])
@@ -45,7 +43,6 @@ model Product {
   @@index([colorBucket])
   @@index([onSale])
   @@index([isNew])
-  @@index([isBestseller])
 }
 
 model ScrapeLog {

@@ -260,7 +260,7 @@ function mergeSizes(colorways: Colorway[]): SizeVariant[] {
   return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
-async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSale = false, isBestseller = false): Promise<boolean> {
+async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSale = false): Promise<boolean> {
   const primary = data.colorways[0];
   if (!primary) return false;
 
@@ -299,11 +299,8 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
   const now = new Date();
   const priceDroppedAt =
     existing && minPrice < existing.price ? now : undefined;
-  const isRestocking = !!(existing && !existing.inStock && data.inStock);
-  const restockedAt = isRestocking ? now : undefined;
-
   // A restock is never a new drop — mutual exclusivity enforced here.
-  // forceNew = product is in the brand's new-arrivals collection OR has a new-arrival tag.
+  const isRestocking = !!(existing && !existing.inStock && data.inStock);
   const isNew = !isRestocking && (forceNew || firstSeenAt > fourteenDaysAgo);
 
   const colourwaysJson = JSON.stringify(data.colorways);
@@ -330,7 +327,6 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew: true,
-      isBestseller,
       firstSeenAt: now,
       lastSeenAt: now,
     },
@@ -349,10 +345,8 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew,
-      isBestseller,
       lastSeenAt: now,
       ...(priceDroppedAt && { priceDroppedAt }),
-      ...(restockedAt && { restockedAt }),
     },
   });
 
@@ -379,13 +373,6 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   if (config.saleHandle) {
     saleIds = await fetchCollectionProductIds(config.domain, config.saleHandle);
     console.log(`[${config.displayName}] ${saleIds.size} products in sale`);
-  }
-
-  // Fetch bestseller collection IDs (if configured)
-  let popularIds = new Set<string>();
-  if (config.popularHandle) {
-    popularIds = await fetchCollectionProductIds(config.domain, config.popularHandle);
-    console.log(`[${config.displayName}] ${popularIds.size} products in bestsellers`);
   }
 
   const raw = await fetchAllProducts(config.domain);
@@ -452,7 +439,6 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     );
     const forceNew = newArrivalIds.has(String(product.id)) || hasNewArrivalTag;
     const forceSale = saleIds.has(String(product.id));
-    const isBestseller = popularIds.has(String(product.id));
     const isNew = await upsertProduct({
       externalId: String(product.id),
       brand: config.brandKey,
@@ -462,7 +448,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       category,
       colorways,
       inStock,
-    }, forceNew, forceSale, isBestseller);
+    }, forceNew, forceSale);
 
     if (isNew) upserted++;
   }
