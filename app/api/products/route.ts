@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 // Anchor brands are promoted in the default feed (2/3 of each page).
 // Discovery brands fill the remaining 1/3.
-const ANCHOR_BRANDS = ["vuori", "lululemon", "rhone"];
+const ANCHOR_BRANDS = ["vuori", "rhone"];
 const ANCHOR_PER_PAGE = 32;
 const DISCOVERY_PER_PAGE = 16;
 
@@ -42,8 +42,12 @@ export async function GET(req: NextRequest) {
   const isNew = searchParams.get("isNew") === "true";
   const drops = searchParams.get("drops") === "true";
   const priceDrops = searchParams.get("priceDrops") === "true";
-  const restocks = searchParams.get("restocks") === "true";
   const popular = searchParams.get("popular") === "true";
+
+  // popular feed is no longer implemented — return empty immediately
+  if (popular) {
+    return NextResponse.json({ products: [], total: 0, page: 1, pageSize: 48, totalPages: 0 });
+  }
   const colors = searchParams.getAll("color");
   const sizes = searchParams.getAll("size");
   const minPrice = parseFloat(searchParams.get("minPrice") || "0");
@@ -68,11 +72,10 @@ export async function GET(req: NextRequest) {
     inStock: true,
     ...(category && { category }),
     ...(onSale && { onSale: true }),
-    ...(hideSaleInDefaultFeed && !drops && !restocks && !popular && { onSale: false }),
+    ...(hideSaleInDefaultFeed && !drops && { onSale: false }),
     ...(isNew && { isNew: true }),
     ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } }),
     ...(priceDrops && { priceDroppedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
-    ...(restocks && { restockedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
     ...(colorFilter && sizeFilter
       ? { AND: [colorFilter, sizeFilter] }
       : colorFilter ?? sizeFilter ?? {}),
@@ -86,16 +89,14 @@ export async function GET(req: NextRequest) {
         ? { price: "desc" as const }
         : sortBy === "newest"
           ? { firstSeenAt: "desc" as const }
-          : popular
-            ? { firstSeenAt: "desc" as const }
-            : { lastSeenAt: "desc" as const };
+          : { lastSeenAt: "desc" as const };
 
   // Use interleaved anchor/discovery fetch only for the unfiltered default feed.
   // Any explicit brand selection or non-default sort bypasses boosting.
   const useBoost =
     brands.length === 0 &&
     sortBy === "lastSeenAt" &&
-    !drops && !priceDrops && !restocks && !popular;
+    !drops && !priceDrops;
 
   if (useBoost) {
     const anchorWhere = { ...sharedWhere, brand: { in: ANCHOR_BRANDS } };

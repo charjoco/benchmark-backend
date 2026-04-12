@@ -1,9 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { BRANDS } from "@/lib/config/brands";
 import { scrapeShopifyBrand } from "./shopify";
-import { scrapeLululemon } from "./lululemon";
-import { scrapeNordstrom } from "./nordstrom";
-import { scrapeREI } from "./rei";
 
 async function runWithLog(
   brand: string,
@@ -52,17 +49,9 @@ export async function runAllScrapers(): Promise<void> {
   console.log("[Scraper] Starting full scrape...");
   const startTime = Date.now();
 
-  // Shopify brands (includes Vuori now)
-  for (const brand of BRANDS.filter((b) => b.scraperType === "shopify")) {
+  for (const brand of BRANDS) {
     await runWithLog(brand.brandKey, () => scrapeShopifyBrand(brand));
   }
-
-  // Playwright brands
-  await runWithLog("lululemon", scrapeLululemon);
-
-  // Retailer scrapers — add seller options to existing products
-  await runWithLog("nordstrom", () => scrapeNordstrom().then((r) => ({ found: r.found, upserted: r.matched })));
-  await runWithLog("rei", () => scrapeREI().then((r) => ({ found: r.found, upserted: r.matched })));
 
   // Mark products isNew = false if firstSeenAt > 14 days ago
   const fourteenDaysAgo = new Date();
@@ -85,24 +74,7 @@ export async function runAllScrapers(): Promise<void> {
 }
 
 export async function runSingleBrand(brandKey: string): Promise<void> {
-  // Retailer scrapers aren't in BRANDS list
-  if (brandKey === "nordstrom") {
-    await runWithLog("nordstrom", () => scrapeNordstrom().then((r) => ({ found: r.found, upserted: r.matched })));
-    return;
-  }
-  if (brandKey === "rei") {
-    await runWithLog("rei", () => scrapeREI().then((r) => ({ found: r.found, upserted: r.matched })));
-    return;
-  }
-
   const brand = BRANDS.find((b) => b.brandKey === brandKey);
   if (!brand) throw new Error(`Unknown brand: ${brandKey}`);
-
-  if (brand.scraperType === "shopify") {
-    await runWithLog(brand.brandKey, () => scrapeShopifyBrand(brand));
-  } else if (brand.brandKey === "lululemon") {
-    await runWithLog("lululemon", scrapeLululemon);
-  } else {
-    throw new Error(`No scraper implemented for playwright brand: ${brandKey}`);
-  }
+  await runWithLog(brand.brandKey, () => scrapeShopifyBrand(brand));
 }

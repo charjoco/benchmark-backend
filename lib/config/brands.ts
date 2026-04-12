@@ -13,7 +13,6 @@ export interface BrandConfig {
   domain: string;
   /** Real website domain for product URLs (when domain is a myshopify URL) */
   websiteDomain?: string;
-  scraperType: "shopify" | "playwright";
   mensInclusionTags: string[];
   womensExclusionTags: string[];
   /** Title prefixes that identify women's products (e.g. ASRV uses "W0" for women's line) */
@@ -42,7 +41,7 @@ export const BRANDS: BrandConfig[] = [
     // byltbasics.com is headless (Pack CMS); myshopify URL serves the JSON API
     domain: "bylt-apparel.myshopify.com",
     websiteDomain: "byltbasics.com",
-    scraperType: "shopify",
+  
     // BYLT embeds gender in product_type (e.g. "Men's-Tops-Short-Sleeves")
     // All men's types start with "Men's-" or "Mens-" — enforce this as a hard rule
     requireMensProductType: true,
@@ -69,7 +68,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "asrv",
     displayName: "ASRV",
     domain: "asrv.com",
-    scraperType: "shopify",
+  
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "female", "gender:female", "gender:w", "gender:women", "WOMENS"],
     // ASRV women's products use "W0XX." title prefix; men's limited use "WN'XX" (not excluded)
@@ -99,7 +98,7 @@ export const BRANDS: BrandConfig[] = [
     // buckmason.com is headless; myshopify URL serves the JSON API
     domain: "buck-mason-usa.myshopify.com",
     websiteDomain: "buckmason.com",
-    scraperType: "shopify",
+  
     mensInclusionTags: ["filter-gender:men"],
     womensExclusionTags: ["filter-gender:women"],
     colorOptionNames: ["Color"],
@@ -124,7 +123,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "reigning-champ",
     displayName: "Reigning Champ",
     domain: "reigningchamp.com",
-    scraperType: "shopify",
+  
     mensInclusionTags: ["gender:mens"],
     womensExclusionTags: ["gender:womens", "gender:women"],
     colorOptionNames: ["Colour", "Color"],
@@ -146,7 +145,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "todd-snyder",
     displayName: "Todd Snyder",
     domain: "toddsnyder.com",
-    scraperType: "shopify",
+  
     // Todd Snyder is a menswear-only brand — no gender inclusion tags needed
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
@@ -170,7 +169,7 @@ export const BRANDS: BrandConfig[] = [
     // www.rhone.com has Cloudflare bot protection — use myshopify URL for scraping
     domain: "rhone.myshopify.com",
     websiteDomain: "rhone.com",
-    scraperType: "shopify",
+  
     // Rhone is a men's-first brand — no gender tag required; exclude women's by title/type
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "gender:f", "all-women"],
@@ -195,7 +194,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "mack-weldon",
     displayName: "Mack Weldon",
     domain: "mackweldon.com",
-    scraperType: "shopify",
+  
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
@@ -214,21 +213,10 @@ export const BRANDS: BrandConfig[] = [
     },
   },
   {
-    brandKey: "lululemon",
-    displayName: "Lululemon",
-    // Playwright scraper — domain not used for Shopify fetching
-    domain: "shop.lululemon.com",
-    scraperType: "playwright",
-    mensInclusionTags: [],
-    womensExclusionTags: [],
-    colorOptionNames: [],
-    categoryMappings: {},
-  },
-  {
     brandKey: "ten-thousand",
     displayName: "Ten Thousand",
     domain: "www.tenthousand.cc",
-    scraperType: "shopify",
+  
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
@@ -251,7 +239,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "public-rec",
     displayName: "Public Rec",
     domain: "www.publicrec.com",
-    scraperType: "shopify",
+  
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: ["Color"],
@@ -276,7 +264,7 @@ export const BRANDS: BrandConfig[] = [
     // vuoriclothing.com is headless Next.js; myshopify URL serves the JSON API
     domain: "vuori-clothing.myshopify.com",
     websiteDomain: "vuoriclothing.com",
-    scraperType: "shopify",
+  
     mensInclusionTags: ["gender::mens"],
     womensExclusionTags: ["gender::womens"],
     colorOptionNames: ["Color"],
@@ -301,7 +289,7 @@ export const BRANDS: BrandConfig[] = [
     // fahertybrand.com has Cloudflare bot protection — use myshopify URL for scraping
     domain: "faherty.myshopify.com",
     websiteDomain: "fahertybrand.com",
-    scraperType: "shopify",
+  
     // Faherty sells men's and women's — filter by gender:Men tag
     mensInclusionTags: ["gender:men"],
     womensExclusionTags: ["gender:women", "gender:womens", "gender:women's"],
@@ -326,7 +314,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "holderness-bourne",
     displayName: "Holderness & Bourne",
     domain: "holdernessandbourne.com",
-    scraperType: "shopify",
+  
     // Men's-only brand — no gender inclusion tags needed; exclude by title/type as safety net
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
@@ -349,7 +337,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "linksoul",
     displayName: "Linksoul",
     domain: "linksoul.com",
-    scraperType: "shopify",
+  
     // Linksoul is a men's-only brand — all products tagged "men"
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
@@ -373,7 +361,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "paka",
     displayName: "Paka",
     domain: "pakaapparel.com",
-    scraperType: "shopify",
+  
     // Paka sells both men's and women's — filter by size-guide:mens inclusion tag
     mensInclusionTags: ["size-guide:mens"],
     womensExclusionTags: ["gender:women", "womens", "all-womens", "size-guide:womens"],
@@ -396,7 +384,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "taylor-stitch",
     displayName: "Taylor Stitch",
     domain: "taylorstitch.com",
-    scraperType: "shopify",
+  
     // Men's-first brand; each colorway is a separate product entry (no Color option)
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
@@ -420,7 +408,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "travis-mathew",
     displayName: "TravisMathew",
     domain: "travismathew.com",
-    scraperType: "shopify",
+  
     // No gender tags — exclude women's-only product types explicitly (Dress, Romper, Skort, Jumpsuit)
     // Shared types (Active Top, Tee, etc.) are further filtered by title-based checks in isMensProduct
     mensInclusionTags: [],
@@ -444,7 +432,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "greyson",
     displayName: "Greyson",
     domain: "greysonclothiers.com",
-    scraperType: "shopify",
+  
     // Product types contain "mens" prefix (e.g. "mens polos") — men's first brand
     mensInclusionTags: ["men", "mens"],
     womensExclusionTags: ["women", "womens", "women's"],
@@ -467,7 +455,7 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "johnnie-o",
     displayName: "Johnnie-O",
     domain: "johnnie-o.com",
-    scraperType: "shopify",
+  
     // Sells men's, women's, and boys — filter strictly by Gender:Men tag
     mensInclusionTags: ["Gender:Men"],
     womensExclusionTags: ["Gender:Women"],
