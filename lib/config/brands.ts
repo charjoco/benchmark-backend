@@ -31,6 +31,10 @@ export interface BrandConfig {
   saleHandle?: string;
   /** Shopify collection handle for bestsellers — products in this collection are marked isBestseller=true */
   popularHandle?: string;
+  /** When set, only products whose Shopify ID appears in this collection are processed.
+   *  Replaces isMensProduct() for this brand — the collection is the sole gender filter.
+   *  Use for brands with no gender tags whose /products.json mixes men's, women's, and youth. */
+  mensCollectionHandle?: string;
   categoryMappings: Partial<Record<AppCategory, CategoryMapping>>;
 }
 
@@ -408,24 +412,27 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "travis-mathew",
     displayName: "TravisMathew",
     domain: "travismathew.com",
-  
-    // No gender tags — exclude women's-only product types explicitly (Dress, Romper, Skort, Jumpsuit)
-    // Shared types (Active Top, Tee, etc.) are further filtered by title-based checks in isMensProduct
+
+    // No gender tags in their catalog — /collections/mens is the authoritative gender filter.
+    // isMensProduct() is bypassed for this brand; mensCollectionHandle is the sole filter.
+    // womensExclusionTags kept for documentation; not active while mensCollectionHandle is set.
+    mensCollectionHandle: "mens",
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "dress", "romper", "skort", "jumpsuit"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-sale",
+    // Product types are explicit and self-describing — no titleContains needed where type is unambiguous.
     categoryMappings: {
-      jackets: { productTypes: ["Vest"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "vest", "shell"] },
-      zips: { productTypes: ["Active Top", "Button-Up"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
-      longsleeve: { productTypes: ["Active Top", "Tee"], titleContains: ["long sleeve", "longsleeve"] },
-      polos: { productTypes: ["Polo"] },
-      shirts: { productTypes: ["Tee", "Active Top", "Active Tank", "Button-Up"] },
-      hoodies: { productTypes: ["Active Top"], titleContains: ["hoodie", "pullover", "sweatshirt"] },
-      sweaters: { productTypes: ["Active Top"], titleContains: ["crew", "crewneck", "sweater", "fleece"] },
-      shorts: { productTypes: ["Boardshort"], titleContains: ["short"] },
-      pants: { productTypes: ["Pant"], titleContains: ["pant", "jogger", "trouser", "chino"] },
+      jackets:    { productTypes: ["Jacket", "Vest", "Bomber", "Shacket"] },
+      zips:       { productTypes: ["Quarter Zip", "Half Zip", "Full Zip"] },
+      longsleeve: { productTypes: ["Tee"], titleContains: ["long sleeve", "longsleeve"] },
+      polos:      { productTypes: ["Polo"] },
+      shirts:     { productTypes: ["Tee", "Button-Up"] },
+      hoodies:    { productTypes: ["Hoodie", "Pullover"] },
+      sweaters:   { productTypes: ["Crew", "Sweater", "Cardigan"] },
+      shorts:     { productTypes: ["Boardshort", "Short"] },
+      pants:      { productTypes: ["Pant", "Jogger"] },
     },
   },
   {

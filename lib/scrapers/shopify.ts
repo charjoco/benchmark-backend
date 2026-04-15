@@ -140,8 +140,10 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
     if (hasWomensTag) return false;
   }
 
-  // Title-based exclusion: catch women's items that slip through gender tagging
-  const womensTitleWords = ["skort", "skirt", "dress", "romper", "jumpsuit", "legging", "bra", "bikini", "thong", "crop top", "sports bra", "womens", "women's", "women\u2019s"];
+  // Title-based exclusion: catch women's items that slip through gender tagging.
+  // Space-padded " bra " avoids false positives on "Chambray", "Braves", "Nebraska", "Branch".
+  // Leading-space " dress" avoids false positives on "Address Unknown".
+  const womensTitleWords = ["skort", "skirt", " dress", "romper", "jumpsuit", "legging", " bra ", "bra top", "bra-top", "bikini", "thong", "crop top", "sports bra", "womens", "women's", "women\u2019s"];
   if (womensTitleWords.some((w) => title.includes(w))) return false;
   // Also exclude if title starts with "women" (catches "Women's Flow Short", "Women's Everyday Pant", etc.)
   if (title.startsWith("women")) return false;
@@ -391,10 +393,20 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     console.log(`[${config.displayName}] ${saleIds.size} products in sale`);
   }
 
+  // Fetch mens collection IDs (if configured) — replaces isMensProduct() for this brand
+  let mensCollectionIds = new Set<string>();
+  if (config.mensCollectionHandle) {
+    console.log(`[${config.displayName}] Fetching mens collection: ${config.mensCollectionHandle}`);
+    mensCollectionIds = await fetchCollectionProductIds(config.domain, config.mensCollectionHandle);
+    console.log(`[${config.displayName}] ${mensCollectionIds.size} products in mens collection`);
+  }
+
   const raw = await fetchAllProducts(config.domain);
   console.log(`[${config.displayName}] Found ${raw.length} raw products`);
 
-  const menProducts = raw.filter((p) => isMensProduct(p, config));
+  const menProducts = mensCollectionIds.size > 0
+    ? raw.filter((p) => mensCollectionIds.has(String(p.id)))
+    : raw.filter((p) => isMensProduct(p, config));
   console.log(`[${config.displayName}] ${menProducts.length} after men's filter`);
 
   // Build the set of valid men's product IDs for stale cleanup later
