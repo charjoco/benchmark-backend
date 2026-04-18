@@ -10,8 +10,8 @@ const ALLOWLIST = (process.env.ADMIN_ALLOWLIST_IDS ?? "")
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only guard admin routes
-  if (!pathname.startsWith("/admin")) {
+  // Only guard admin routes (pages and API)
+  if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
     return NextResponse.next();
   }
 
@@ -49,7 +49,10 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user || !ALLOWLIST.includes(user.id)) {
-    // Return 404 to avoid revealing the admin exists to unauthorized visitors
+    // API routes get a JSON 401; page routes get 404 to not reveal the admin exists
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return new NextResponse(null, { status: 404 });
   }
 
@@ -57,5 +60,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
