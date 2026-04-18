@@ -36,6 +36,12 @@ model Product {
   lastSeenAt     DateTime  @default(now())
   priceDroppedAt DateTime?
   updatedAt      DateTime  @updatedAt
+  // Admin fields
+  categoryOverride String?
+  isHidden         Boolean  @default(false)
+  // Relations
+  collections      CollectionProduct[]
+  heroFor          Collection[]        @relation("CollectionHero")
 
   @@unique([brand, externalId])
   @@index([brand])
@@ -43,6 +49,7 @@ model Product {
   @@index([colorBucket])
   @@index([onSale])
   @@index([isNew])
+  @@index([isHidden])
 }
 
 model ScrapeLog {
@@ -54,4 +61,32 @@ model ScrapeLog {
   itemsFound    Int?
   itemsUpserted Int?
   errorMessage  String?
+}
+
+model Collection {
+  id            String              @id @default(cuid())
+  name          String
+  slug          String              @unique
+  description   String?
+  isActive      Boolean             @default(false)
+  heroProductId String?
+  heroProduct   Product?            @relation("CollectionHero", fields: [heroProductId], references: [id])
+  products      CollectionProduct[]
+  lastEditedAt  DateTime            @updatedAt
+  lastEditedBy  String?             // Supabase user ID of last editor
+
+  @@index([isActive])
+}
+
+model CollectionProduct {
+  id           String     @id @default(cuid())
+  collectionId String
+  productId    String
+  position     Int
+  addedAt      DateTime   @default(now())
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, productId])
+  @@index([collectionId, position])
 }
