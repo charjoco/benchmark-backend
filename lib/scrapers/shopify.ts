@@ -404,9 +404,17 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   const raw = await fetchAllProducts(config.domain);
   console.log(`[${config.displayName}] Found ${raw.length} raw products`);
 
-  const menProducts = mensCollectionIds.size > 0
+  const genderFiltered = mensCollectionIds.size > 0
     ? raw.filter((p) => mensCollectionIds.has(String(p.id)))
     : raw.filter((p) => isMensProduct(p, config));
+
+  // Global non-apparel exclusion — catches accessories that slip through gender filters
+  // (e.g. "Crew Sock" matching sweaters via "Crew" substring in product type).
+  // "sock" is space-padded to avoid false positives on "Hammock" etc.
+  const NON_APPAREL_TITLE_WORDS = [" sock"];
+  const menProducts = genderFiltered.filter(
+    (p) => !NON_APPAREL_TITLE_WORDS.some((w) => p.title.toLowerCase().includes(w))
+  );
   console.log(`[${config.displayName}] ${menProducts.length} after men's filter`);
 
   // Build the set of valid men's product IDs for stale cleanup later
