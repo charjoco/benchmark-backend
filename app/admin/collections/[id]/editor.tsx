@@ -5,8 +5,8 @@ import {
   updateCollectionMeta,
   setCollectionActive,
   deleteCollection,
-  slugify,
 } from "../actions";
+import { slugify } from "../utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

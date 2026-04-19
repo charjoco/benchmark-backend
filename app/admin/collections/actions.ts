@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { slugify } from "./utils";
 
 async function getCurrentUserId(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
@@ -11,14 +12,6 @@ async function getCurrentUserId(): Promise<string | null> {
     data: { user },
   } = await supabase.auth.getUser();
   return user?.id ?? null;
-}
-
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
