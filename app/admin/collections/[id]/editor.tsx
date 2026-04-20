@@ -7,6 +7,9 @@ import {
   deleteCollection,
 } from "../actions";
 import { slugify } from "../utils";
+import { ProductFinder } from "./product-finder";
+import { CollectionContents } from "./collection-contents";
+import { PreviewModal } from "./preview-modal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,17 +71,34 @@ export function CollectionEditor({
   collection: initial,
   currentUserId,
   editorNames,
+  brands,
 }: {
   collection: EditorCollection;
   currentUserId: string | null;
   editorNames: Record<string, string>;
+  brands: { brandKey: string; displayName: string }[];
 }) {
   const [collection, setCollection] = useState<EditorCollection>(initial);
+  const [showPreview, setShowPreview] = useState(false);
 
-  // Callbacks for child panels to update shared state
   function onCollectionUpdate(patch: Partial<EditorCollection>) {
     setCollection((prev) => ({ ...prev, ...patch }));
   }
+
+  function handleProductAdded(product: EditorProduct) {
+    const newCp: EditorCollectionProduct = {
+      productId: product.id,
+      position: collection.products.length,
+      addedAt: new Date().toISOString(),
+      product,
+    };
+    setCollection((prev) => ({
+      ...prev,
+      products: [...prev.products, newCp],
+    }));
+  }
+
+  const canPreview = collection.products.length > 0;
 
   return (
     <div
@@ -129,18 +149,20 @@ export function CollectionEditor({
         </div>
 
         <button
-          disabled
-          title="Preview available after adding products"
+          onClick={() => canPreview && setShowPreview(true)}
+          disabled={!canPreview}
+          title={canPreview ? "Preview collection" : "Add products first"}
           style={{
             backgroundColor: "transparent",
-            border: "1px solid #27272a",
+            border: "1px solid",
+            borderColor: canPreview ? "#3f3f46" : "#1c1c1e",
             borderRadius: 4,
             padding: "6px 14px",
             fontSize: 11,
             fontFamily: "monospace",
             letterSpacing: 1,
-            color: "#3f3f46",
-            cursor: "not-allowed",
+            color: canPreview ? "#a1a1aa" : "#3f3f46",
+            cursor: canPreview ? "pointer" : "not-allowed",
           }}
         >
           PREVIEW
@@ -149,37 +171,37 @@ export function CollectionEditor({
 
       {/* ── Three panels ── */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Left: Product finder (Step 4) */}
+        {/* Left: Product finder */}
         <div
           style={{
-            width: 340,
+            width: 320,
             borderRight: "1px solid #27272a",
-            overflowY: "auto",
-            padding: 24,
+            padding: 16,
             flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
           }}
         >
-          <p style={{ fontSize: 11, letterSpacing: 1, color: "#3f3f46", marginBottom: 12 }}>
-            PRODUCT FINDER
-          </p>
-          <div
+          <p
             style={{
-              height: 200,
-              backgroundColor: "#111113",
-              border: "1px dashed #27272a",
-              borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#3f3f46",
-              fontSize: 12,
+              fontSize: 11,
+              letterSpacing: 1,
+              color: "#52525b",
+              margin: "0 0 12px",
             }}
           >
-            Coming in next step
-          </div>
+            PRODUCT FINDER
+          </p>
+          <ProductFinder
+            collectionId={collection.id}
+            collectionProducts={collection.products}
+            brands={brands}
+            onProductAdded={handleProductAdded}
+          />
         </div>
 
-        {/* Middle: Collection contents (Step 5) */}
+        {/* Middle: Collection contents */}
         <div
           style={{
             flex: 1,
@@ -188,86 +210,7 @@ export function CollectionEditor({
             padding: 24,
           }}
         >
-          <p style={{ fontSize: 11, letterSpacing: 1, color: "#3f3f46", marginBottom: 12 }}>
-            COLLECTION CONTENTS · {collection.products.length} / 15
-          </p>
-          {collection.products.length === 0 ? (
-            <div
-              style={{
-                height: 200,
-                backgroundColor: "#111113",
-                border: "1px dashed #27272a",
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#3f3f46",
-                fontSize: 12,
-              }}
-            >
-              No products yet — add some from the finder
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {collection.products.map((cp) => (
-                <div
-                  key={cp.productId}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 12px",
-                    backgroundColor: "#111113",
-                    borderRadius: 6,
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={cp.product.imageUrl}
-                    alt={cp.product.title}
-                    style={{
-                      width: 48,
-                      height: 48,
-                      objectFit: "cover",
-                      borderRadius: 4,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "#f4f4f5",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {cp.product.title}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#71717a" }}>
-                      {cp.product.brand} · ${cp.product.price.toFixed(2)}
-                    </div>
-                  </div>
-                  {cp.productId === collection.heroProductId && (
-                    <span
-                      style={{
-                        fontSize: 9,
-                        letterSpacing: 1,
-                        color: "#ca8a04",
-                        fontWeight: "bold",
-                        padding: "2px 6px",
-                        backgroundColor: "#2d2006",
-                        borderRadius: 4,
-                      }}
-                    >
-                      HERO
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          <CollectionContents collection={collection} onUpdate={onCollectionUpdate} />
         </div>
 
         {/* Right: Metadata */}
@@ -278,6 +221,11 @@ export function CollectionEditor({
           onUpdate={onCollectionUpdate}
         />
       </div>
+
+      {/* Preview modal */}
+      {showPreview && (
+        <PreviewModal collection={collection} onClose={() => setShowPreview(false)} />
+      )}
     </div>
   );
 }
@@ -353,7 +301,6 @@ function MetadataPanel({
   async function handleDelete() {
     setDeleting(true);
     await deleteCollection(collection.id);
-    // deleteCollection redirects, so this line is never reached
   }
 
   const inputStyle: React.CSSProperties = {

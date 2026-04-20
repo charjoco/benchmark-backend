@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CollectionEditor } from "./editor";
+import { BRANDS } from "@/lib/config/brands";
 
 export const dynamic = "force-dynamic";
 
@@ -73,11 +74,17 @@ export default async function CollectionEditorPage({
     allowlist.map((id, i) => [id, names[i] ?? `user ${i + 1}`])
   );
 
+  const brands = BRANDS.map((b) => ({
+    brandKey: b.brandKey,
+    displayName: b.displayName,
+  }));
+
   return (
     <CollectionEditor
       collection={serialized}
       currentUserId={user?.id ?? null}
       editorNames={editorNames}
+      brands={brands}
     />
   );
 }

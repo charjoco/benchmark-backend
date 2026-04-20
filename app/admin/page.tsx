@@ -3,131 +3,198 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const STATUS_COLOR: Record<string, string> = {
-  success: "#16a34a",
-  error: "#dc2626",
-  running: "#ca8a04",
-};
+async function getStats() {
+  const [
+    collectionsTotal,
+    collectionsActive,
+    scrapeErrorCount,
+    brandCount,
+    latestLogs,
+  ] = await Promise.all([
+    prisma.collection.count(),
+    prisma.collection.count({ where: { isActive: true } }),
+    prisma.scrapeLog.count({
+      where: {
+        status: "error",
+        startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    }),
+    prisma.scrapeLog.groupBy({ by: ["brand"], orderBy: { brand: "asc" } }).then(
+      (r) => r.length
+    ),
+    prisma.scrapeLog.findMany({
+      orderBy: { startedAt: "desc" },
+      take: 200,
+      select: { brand: true, status: true, finishedAt: true },
+    }),
+  ]);
 
-function timeAgo(date: Date | null): string {
-  if (!date) return "—";
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  // Stale brands = brands whose last successful run is >26h ago
+  const latestByBrand = new Map<string, (typeof latestLogs)[0]>();
+  for (const log of latestLogs) {
+    if (!latestByBrand.has(log.brand)) latestByBrand.set(log.brand, log);
+  }
+  const staleBrands = Array.from(latestByBrand.values()).filter((log) => {
+    if (!log.finishedAt) return true;
+    return Date.now() - new Date(log.finishedAt).getTime() > 26 * 60 * 60 * 1000;
+  }).length;
+
+  return { collectionsTotal, collectionsActive, scrapeErrorCount, brandCount, staleBrands };
 }
 
 export default async function AdminPage() {
-  // Latest run per brand
-  const logs = await prisma.scrapeLog.findMany({
-    orderBy: { startedAt: "desc" },
-    take: 200,
-  });
+  const { collectionsTotal, collectionsActive, scrapeErrorCount, staleBrands } =
+    await getStats();
 
-  // Dedupe to latest per brand
-  const latestByBrand = new Map<string, typeof logs[0]>();
-  for (const log of logs) {
-    if (!latestByBrand.has(log.brand)) latestByBrand.set(log.brand, log);
-  }
+  const scrapeAlert = scrapeErrorCount > 0 || staleBrands > 0;
 
-  const brandRows = Array.from(latestByBrand.values()).sort((a, b) =>
-    a.brand.localeCompare(b.brand)
-  );
-
-  // Product counts per brand
-  const counts = await prisma.product.groupBy({
-    by: ["brand"],
-    _count: { id: true },
-    where: { inStock: true },
-  });
-  const countMap = Object.fromEntries(counts.map((c) => [c.brand, c._count.id]));
-
-  // Recent errors
-  const recentErrors = logs.filter((l) => l.status === "error").slice(0, 10);
+  const tiles = [
+    {
+      href: "/admin/collections",
+      label: "COLLECTIONS",
+      value: collectionsActive,
+      sub: `${collectionsTotal} total`,
+      note: collectionsActive < 5 ? `${5 - collectionsActive} slots available` : "All slots filled",
+      alert: false,
+    },
+    {
+      href: "/admin/scrape-logs",
+      label: "SCRAPER HEALTH",
+      value: scrapeErrorCount,
+      sub: staleBrands > 0 ? `${staleBrands} stale brands` : "All brands current",
+      note: "Last 24h errors",
+      alert: scrapeAlert,
+    },
+    {
+      href: "/admin/queue",
+      label: "RETRY QUEUE",
+      value: "—",
+      sub: "Coming soon",
+      note: "Products awaiting classification",
+      alert: false,
+      disabled: true,
+    },
+    {
+      href: "/admin/scrape-logs",
+      label: "DAILY SCRAPE",
+      value: "—",
+      sub: "Coming soon",
+      note: "Today's new & dropped products",
+      alert: false,
+      disabled: true,
+    },
+  ];
 
   return (
-    <div style={{ fontFamily: "monospace", padding: "32px", backgroundColor: "#0a0a0a", minHeight: "100vh", color: "#e4e4e7" }}>
-      <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px", letterSpacing: "2px" }}>
-        BENCHMARK — Scraper Health
-      </h1>
-      <p style={{ color: "#71717a", marginBottom: "32px", fontSize: "13px" }}>
-        Last loaded: {new Date().toISOString()}
-      </p>
+    <div
+      style={{
+        fontFamily: "monospace",
+        padding: "40px 32px",
+        backgroundColor: "#0a0a0a",
+        minHeight: "100vh",
+        color: "#e4e4e7",
+      }}
+    >
+      {/* Header */}
+      <div style={{ marginBottom: 48 }}>
+        <h1
+          style={{
+            fontSize: 22,
+            fontWeight: "bold",
+            letterSpacing: 3,
+            color: "#f4f4f5",
+            margin: 0,
+          }}
+        >
+          BENCHMARK
+        </h1>
+        <p style={{ color: "#52525b", fontSize: 12, marginTop: 6, marginBottom: 0 }}>
+          Admin · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+        </p>
+      </div>
 
-      {/* Brand health table */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "48px" }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid #27272a", textAlign: "left" }}>
-            {["Brand", "Status", "Last Run", "Duration", "Found", "Upserted", "In Stock", "Error"].map((h) => (
-              <th key={h} style={{ padding: "8px 12px", fontSize: "11px", letterSpacing: "1px", color: "#52525b" }}>
-                {h.toUpperCase()}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {brandRows.map((log) => {
-            const duration = log.finishedAt
-              ? `${Math.round((new Date(log.finishedAt).getTime() - new Date(log.startedAt).getTime()) / 1000)}s`
-              : "—";
-            const statusColor = STATUS_COLOR[log.status] ?? "#71717a";
-            const isStale = log.finishedAt
-              ? Date.now() - new Date(log.finishedAt).getTime() > 26 * 60 * 60 * 1000
-              : true;
+      {/* Four tiles */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 12,
+          maxWidth: 720,
+        }}
+      >
+        {tiles.map((tile) => (
+          <a
+            key={tile.label}
+            href={tile.disabled ? undefined : tile.href}
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              cursor: tile.disabled ? "default" : "pointer",
+              opacity: tile.disabled ? 0.5 : 1,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "#111113",
+                border: `1px solid ${tile.alert ? "#3f1010" : "#1c1c1e"}`,
+                borderRadius: 8,
+                padding: "24px",
+                transition: "background 0.1s",
+              }}
+            >
+              {/* Label */}
+              <p
+                style={{
+                  fontSize: 10,
+                  letterSpacing: 2,
+                  color: tile.alert ? "#f87171" : "#52525b",
+                  margin: "0 0 12px",
+                }}
+              >
+                {tile.label}
+              </p>
 
-            return (
-              <tr key={log.id} style={{ borderBottom: "1px solid #18181b" }}>
-                <td style={{ padding: "10px 12px", fontWeight: "bold" }}>{log.brand}</td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span style={{ color: statusColor, fontWeight: "bold" }}>
-                    {log.status.toUpperCase()}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 12px", color: isStale ? "#f87171" : "#a1a1aa" }}>
-                  {timeAgo(log.finishedAt)}
-                </td>
-                <td style={{ padding: "10px 12px", color: "#71717a" }}>{duration}</td>
-                <td style={{ padding: "10px 12px", color: "#a1a1aa" }}>{log.itemsFound ?? "—"}</td>
-                <td style={{ padding: "10px 12px", color: "#a1a1aa" }}>{log.itemsUpserted ?? "—"}</td>
-                <td style={{ padding: "10px 12px", color: "#a1a1aa" }}>{countMap[log.brand] ?? 0}</td>
-                <td style={{ padding: "10px 12px", color: "#ef4444", fontSize: "11px", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {log.errorMessage ?? ""}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              {/* Big number */}
+              <p
+                style={{
+                  fontSize: 40,
+                  fontWeight: "bold",
+                  color: tile.alert
+                    ? "#f87171"
+                    : typeof tile.value === "number" && tile.value > 0
+                    ? "#f4f4f5"
+                    : "#71717a",
+                  margin: "0 0 6px",
+                  lineHeight: 1,
+                }}
+              >
+                {tile.value}
+              </p>
 
-      {/* Recent errors */}
-      {recentErrors.length > 0 && (
-        <>
-          <h2 style={{ fontSize: "14px", letterSpacing: "1.5px", color: "#ef4444", marginBottom: "12px" }}>
-            RECENT ERRORS
-          </h2>
-          {recentErrors.map((log) => (
-            <div key={log.id} style={{ backgroundColor: "#1c0a0a", border: "1px solid #3f1010", borderRadius: "6px", padding: "12px 16px", marginBottom: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <span style={{ fontWeight: "bold" }}>{log.brand}</span>
-                <span style={{ color: "#71717a", fontSize: "12px" }}>{timeAgo(log.startedAt)}</span>
-              </div>
-              <div style={{ color: "#fca5a5", fontSize: "12px", whiteSpace: "pre-wrap" }}>
-                {log.errorMessage}
-              </div>
+              {/* Sub */}
+              <p style={{ fontSize: 12, color: "#71717a", margin: "0 0 4px" }}>{tile.sub}</p>
+
+              {/* Note */}
+              <p style={{ fontSize: 10, color: "#3f3f46", margin: 0 }}>{tile.note}</p>
             </div>
-          ))}
-        </>
-      )}
+          </a>
+        ))}
+      </div>
 
-      {/* Trigger scrape */}
-      <div style={{ marginTop: "48px", padding: "16px", backgroundColor: "#111113", borderRadius: "8px", border: "1px solid #27272a" }}>
-        <p style={{ color: "#71717a", fontSize: "12px", marginBottom: "8px" }}>MANUAL TRIGGER</p>
-        <code style={{ color: "#a1a1aa", fontSize: "12px" }}>
-          POST /api/scrape — triggers full scrape<br />
-          POST /api/scrape {"{ brand: \"vuori\" }"} — triggers single brand
-        </code>
+      {/* Quick links */}
+      <div style={{ marginTop: 48, display: "flex", gap: 16 }}>
+        <a
+          href="/admin/collections"
+          style={{ fontSize: 12, color: "#52525b", textDecoration: "none" }}
+        >
+          Collections →
+        </a>
+        <a
+          href="/admin/scrape-logs"
+          style={{ fontSize: 12, color: "#52525b", textDecoration: "none" }}
+        >
+          Scrape Logs →
+        </a>
       </div>
     </div>
   );
