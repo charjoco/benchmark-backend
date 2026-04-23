@@ -5,22 +5,17 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { id } = await params;
+  const { slug } = await params;
 
-  const article = await prisma.article.findUnique({
-    where: { id, isActive: true },
+  const collection = await prisma.collection.findUnique({
+    where: { slug, isActive: true },
     select: {
       id: true,
-      title: true,
-      subtitle: true,
-      body: true,
-      publishedAt: true,
-      images: {
-        orderBy: { position: "asc" },
-        select: { id: true, imageUrl: true, altText: true, position: true },
-      },
+      name: true,
+      slug: true,
+      description: true,
       products: {
         orderBy: { position: "asc" },
         select: {
@@ -56,26 +51,24 @@ export async function GET(
     },
   });
 
-  if (!article) {
+  if (!collection) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json({
-    id: article.id,
-    title: article.title,
-    subtitle: article.subtitle,
-    body: article.body,
-    publishedAt: article.publishedAt,
-    images: article.images,
-    products: article.products.map((ap) => ({
-      ...ap.product,
-      colorways: JSON.parse(ap.product.colorways),
-      sellers: JSON.parse(ap.product.sellers),
-      sizes: JSON.parse(ap.product.sizes),
-      firstSeenAt: ap.product.firstSeenAt.toISOString(),
-      lastSeenAt: ap.product.lastSeenAt.toISOString(),
-      priceDroppedAt: ap.product.priceDroppedAt?.toISOString() ?? null,
-      updatedAt: ap.product.updatedAt.toISOString(),
+    id: collection.id,
+    name: collection.name,
+    slug: collection.slug,
+    description: collection.description,
+    products: collection.products.map((cp) => ({
+      ...cp.product,
+      colorways: JSON.parse(cp.product.colorways),
+      sellers: JSON.parse(cp.product.sellers),
+      sizes: JSON.parse(cp.product.sizes),
+      firstSeenAt: cp.product.firstSeenAt.toISOString(),
+      lastSeenAt: cp.product.lastSeenAt.toISOString(),
+      priceDroppedAt: cp.product.priceDroppedAt?.toISOString() ?? null,
+      updatedAt: cp.product.updatedAt.toISOString(),
     })),
   });
 }
