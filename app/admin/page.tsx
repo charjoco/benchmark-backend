@@ -7,12 +7,16 @@ async function getStats() {
   const [
     collectionsTotal,
     collectionsActive,
+    articlesTotal,
+    articlesActive,
     scrapeErrorCount,
     brandCount,
     latestLogs,
   ] = await Promise.all([
     prisma.collection.count(),
     prisma.collection.count({ where: { isActive: true } }),
+    prisma.article.count(),
+    prisma.article.count({ where: { isActive: true } }),
     prisma.scrapeLog.count({
       where: {
         status: "error",
@@ -39,11 +43,11 @@ async function getStats() {
     return Date.now() - new Date(log.finishedAt).getTime() > 26 * 60 * 60 * 1000;
   }).length;
 
-  return { collectionsTotal, collectionsActive, scrapeErrorCount, brandCount, staleBrands };
+  return { collectionsTotal, collectionsActive, articlesTotal, articlesActive, scrapeErrorCount, brandCount, staleBrands };
 }
 
 export default async function AdminPage() {
-  const { collectionsTotal, collectionsActive, scrapeErrorCount, staleBrands } =
+  const { collectionsTotal, collectionsActive, articlesTotal, articlesActive, scrapeErrorCount, staleBrands } =
     await getStats();
 
   const scrapeAlert = scrapeErrorCount > 0 || staleBrands > 0;
@@ -66,20 +70,19 @@ export default async function AdminPage() {
       alert: scrapeAlert,
     },
     {
+      href: "/admin/articles",
+      label: "EDITORIAL",
+      value: articlesActive,
+      sub: `${articlesTotal} total`,
+      note: articlesActive === 0 ? "No active articles" : `${articlesActive} visible in app`,
+      alert: false,
+    },
+    {
       href: "/admin/queue",
       label: "RETRY QUEUE",
       value: "—",
       sub: "Coming soon",
       note: "Products awaiting classification",
-      alert: false,
-      disabled: true,
-    },
-    {
-      href: "/admin/scrape-logs",
-      label: "DAILY SCRAPE",
-      value: "—",
-      sub: "Coming soon",
-      note: "Today's new & dropped products",
       alert: false,
       disabled: true,
     },
@@ -188,6 +191,12 @@ export default async function AdminPage() {
           style={{ fontSize: 12, color: "#52525b", textDecoration: "none" }}
         >
           Collections →
+        </a>
+        <a
+          href="/admin/articles"
+          style={{ fontSize: 12, color: "#52525b", textDecoration: "none" }}
+        >
+          Editorial →
         </a>
         <a
           href="/admin/scrape-logs"

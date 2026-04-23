@@ -25,7 +25,30 @@ export async function createArticle() {
   redirect(`/admin/articles/${article.id}`);
 }
 
-// ── Metadata ──────────────────────────────────────────────────────────────────
+// ── Save (combined title + subtitle + body) ───────────────────────────────────
+
+export async function saveArticle(
+  id: string,
+  data: { title: string; subtitle: string; body: string }
+): Promise<{ error?: string }> {
+  const userId = await getCurrentUserId();
+
+  await prisma.article.update({
+    where: { id },
+    data: {
+      title: data.title.trim() || "Untitled Article",
+      subtitle: data.subtitle.trim() || null,
+      body: data.body,
+      lastEditedBy: userId,
+    },
+  });
+
+  revalidatePath(`/admin/articles/${id}`);
+  revalidatePath("/admin/articles");
+  return {};
+}
+
+// ── Metadata (kept for granular use) ─────────────────────────────────────────
 
 export async function updateArticleMeta(
   id: string,
@@ -33,12 +56,10 @@ export async function updateArticleMeta(
 ): Promise<{ error?: string }> {
   const userId = await getCurrentUserId();
 
-  const trimmedTitle = data.title.trim() || "Untitled Article";
-
   await prisma.article.update({
     where: { id },
     data: {
-      title: trimmedTitle,
+      title: data.title.trim() || "Untitled Article",
       subtitle: data.subtitle.trim() || null,
       lastEditedBy: userId,
     },
@@ -49,7 +70,7 @@ export async function updateArticleMeta(
   return {};
 }
 
-// ── Body ──────────────────────────────────────────────────────────────────────
+// ── Body (kept for granular use) ──────────────────────────────────────────────
 
 export async function updateArticleBody(
   id: string,
@@ -99,7 +120,10 @@ export async function setArticleActive(
 export async function addImageToArticle(
   articleId: string,
   data: { imageUrl: string; altText: string }
-): Promise<{ error?: string }> {
+): Promise<{
+  image?: { id: string; imageUrl: string; altText: string | null; position: number };
+  error?: string;
+}> {
   const userId = await getCurrentUserId();
 
   const count = await prisma.articleImage.count({ where: { articleId } });
@@ -107,8 +131,14 @@ export async function addImageToArticle(
     return { error: "Articles cannot have more than 3 images." };
   }
 
-  await prisma.articleImage.create({
-    data: { articleId, imageUrl: data.imageUrl, altText: data.altText || null, position: count },
+  const image = await prisma.articleImage.create({
+    data: {
+      articleId,
+      imageUrl: data.imageUrl,
+      altText: data.altText || null,
+      position: count,
+    },
+    select: { id: true, imageUrl: true, altText: true, position: true },
   });
 
   await prisma.article.update({
@@ -117,6 +147,17 @@ export async function addImageToArticle(
   });
 
   revalidatePath(`/admin/articles/${articleId}`);
+  return { image };
+}
+
+export async function updateImageAltText(
+  imageId: string,
+  altText: string
+): Promise<{ error?: string }> {
+  await prisma.articleImage.update({
+    where: { id: imageId },
+    data: { altText: altText.trim() || null },
+  });
   return {};
 }
 
@@ -128,7 +169,6 @@ export async function removeImageFromArticle(
 
   await prisma.articleImage.delete({ where: { id: imageId } });
 
-  // Re-index positions to keep them dense
   const remaining = await prisma.articleImage.findMany({
     where: { articleId },
     orderBy: { position: "asc" },
@@ -206,7 +246,6 @@ export async function removeProductFromArticle(
     where: { articleId_productId: { articleId, productId } },
   });
 
-  // Re-index positions
   const remaining = await prisma.articleProduct.findMany({
     where: { articleId },
     orderBy: { position: "asc" },
