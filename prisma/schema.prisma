@@ -42,6 +42,7 @@ model Product {
   // Relations
   collections      CollectionProduct[]
   heroFor          Collection[]        @relation("CollectionHero")
+  articles         ArticleProduct[]
 
   @@unique([brand, externalId])
   @@index([brand])
@@ -76,6 +77,45 @@ model Collection {
   lastEditedBy  String?             // Supabase user ID of last editor
 
   @@index([isActive])
+}
+
+model Article {
+  id           String           @id @default(cuid())
+  title        String
+  subtitle     String?
+  body         String           @default("")
+  isActive     Boolean          @default(false)
+  publishedAt  DateTime?
+  lastEditedAt DateTime         @updatedAt
+  lastEditedBy String?
+  images       ArticleImage[]
+  products     ArticleProduct[]
+
+  @@index([isActive])
+  @@index([publishedAt])
+}
+
+model ArticleImage {
+  id        String  @id @default(cuid())
+  articleId String
+  imageUrl  String
+  position  Int
+  altText   String?
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, position])
+}
+
+model ArticleProduct {
+  id        String  @id @default(cuid())
+  articleId String
+  productId String
+  position  Int
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, productId])
+  @@index([articleId, position])
 }
 
 model CollectionProduct {
