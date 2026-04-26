@@ -1,10 +1,22 @@
+"use client";
+
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "./actions";
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
+const initialState: { error?: string } = {};
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [state, formAction, isPending] = useActionState(signIn, initialState);
+
+  // Redirect only after the action has fully resolved (cookies are written)
+  useEffect(() => {
+    if (state && !state.error && state !== initialState) {
+      router.push("/admin");
+    }
+  }, [state, router]);
+
   return (
     <div
       style={{
@@ -48,7 +60,7 @@ export default function LoginPage({
           ADMIN
         </p>
 
-        <form action={signIn} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={{ fontSize: "11px", letterSpacing: "1px", color: "#71717a" }}>
               EMAIL
@@ -93,14 +105,19 @@ export default function LoginPage({
             />
           </div>
 
-          <LoginError searchParams={searchParams} />
+          {state?.error && (
+            <p style={{ fontSize: "12px", color: "#f87171", margin: 0 }}>
+              {state.error}
+            </p>
+          )}
 
           <button
             type="submit"
+            disabled={isPending}
             style={{
               marginTop: "8px",
-              backgroundColor: "#f4f4f5",
-              color: "#09090b",
+              backgroundColor: isPending ? "#27272a" : "#f4f4f5",
+              color: isPending ? "#71717a" : "#09090b",
               border: "none",
               borderRadius: "4px",
               padding: "12px",
@@ -108,28 +125,13 @@ export default function LoginPage({
               fontFamily: "monospace",
               fontWeight: "bold",
               letterSpacing: "1.5px",
-              cursor: "pointer",
+              cursor: isPending ? "wait" : "pointer",
             }}
           >
-            SIGN IN
+            {isPending ? "SIGNING IN…" : "SIGN IN"}
           </button>
         </form>
       </div>
     </div>
-  );
-}
-
-async function LoginError({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const params = await searchParams;
-  if (!params.error) return null;
-
-  return (
-    <p style={{ fontSize: "12px", color: "#f87171", margin: 0 }}>
-      Invalid email or password.
-    </p>
   );
 }

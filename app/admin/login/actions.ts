@@ -1,9 +1,11 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function signIn(formData: FormData) {
+export async function signIn(
+  _prevState: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -11,8 +13,12 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect("/admin/login?error=invalid_credentials");
+    return { error: "Invalid email or password." };
   }
 
-  redirect("/admin");
+  // Return success — the client will redirect after this resolves so that
+  // the Set-Cookie headers from signInWithPassword are included in the
+  // response before any navigation happens (avoids the redirect() race
+  // where cookies might not be written before the redirect fires).
+  return {};
 }
