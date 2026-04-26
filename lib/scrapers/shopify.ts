@@ -239,7 +239,8 @@ function buildSizeVariants(
 
 function resolveImageForColor(
   product: ShopifyProduct,
-  colorVariants: ShopifyVariant[]
+  colorVariants: ShopifyVariant[],
+  preferredImageIndex = 0
 ): string {
   const firstVariantId = colorVariants[0]?.id;
   if (firstVariantId) {
@@ -248,7 +249,7 @@ function resolveImageForColor(
     );
     if (variantImage) return variantImage.src;
   }
-  return product.images[0]?.src ?? "";
+  return (product.images[preferredImageIndex] ?? product.images[0])?.src ?? "";
 }
 
 /** Merge size lists, preferring available=true when a size appears in multiple colorways */
@@ -428,7 +429,8 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
 
     if (!category) {
       // Rules didn't match — try Claude vision as fallback
-      const primaryImage = product.images[0]?.src ?? "";
+      const preferredIdx = config.preferredImageIndex ?? 0;
+      const primaryImage = (product.images[preferredIdx] ?? product.images[0])?.src ?? "";
       category = await classifyCategoryViaVision(primaryImage, product.title, product.product_type);
       if (category) {
         console.log(`[${config.displayName}] Vision classified "${product.title}" → ${category}`);
@@ -458,7 +460,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       const maxCompare = comparePrices.length > 0 ? Math.max(...comparePrices) : null;
       const onSale = maxCompare !== null && maxCompare > minPrice;
       const sizes = buildSizeVariants(variants, sizeOptionIndex);
-      const imageUrl = resolveImageForColor(product, variants);
+      const imageUrl = resolveImageForColor(product, variants, config.preferredImageIndex);
       const colorBucket = extractColorBucket(colorName);
 
       logUnmappedColor(config.brandKey, colorName);

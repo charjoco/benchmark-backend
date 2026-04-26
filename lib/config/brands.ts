@@ -35,6 +35,10 @@ export interface BrandConfig {
    *  Replaces isMensProduct() for this brand — the collection is the sole gender filter.
    *  Use for brands with no gender tags whose /products.json mixes men's, women's, and youth. */
   mensCollectionHandle?: string;
+  /** Which image position to use as the primary product image. Defaults to 0.
+   *  Set when a brand puts flat-lays or close-crops first and model shots at a later index.
+   *  Falls back to images[0] if the preferred index doesn't exist for a given product. */
+  preferredImageIndex?: number;
   categoryMappings: Partial<Record<AppCategory, CategoryMapping>>;
 }
 
@@ -102,7 +106,8 @@ export const BRANDS: BrandConfig[] = [
     // buckmason.com is headless; myshopify URL serves the JSON API
     domain: "buck-mason-usa.myshopify.com",
     websiteDomain: "buckmason.com",
-  
+    preferredImageIndex: 1,
+
     mensInclusionTags: ["filter-gender:men"],
     womensExclusionTags: ["filter-gender:women"],
     colorOptionNames: ["Color"],
@@ -127,7 +132,8 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "reigning-champ",
     displayName: "Reigning Champ",
     domain: "reigningchamp.com",
-  
+    preferredImageIndex: 1,
+
     mensInclusionTags: ["gender:mens"],
     womensExclusionTags: ["gender:womens", "gender:women"],
     colorOptionNames: ["Colour", "Color"],
@@ -149,7 +155,8 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "todd-snyder",
     displayName: "Todd Snyder",
     domain: "toddsnyder.com",
-  
+    preferredImageIndex: 1,
+
     // Todd Snyder is a menswear-only brand — no gender inclusion tags needed
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
@@ -198,7 +205,8 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "mack-weldon",
     displayName: "Mack Weldon",
     domain: "mackweldon.com",
-  
+    preferredImageIndex: 2,
+
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],
     colorOptionNames: ["Color"],
@@ -318,7 +326,8 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "holderness-bourne",
     displayName: "Holderness & Bourne",
     domain: "holdernessandbourne.com",
-  
+    preferredImageIndex: 1,
+
     // Men's-only brand — no gender inclusion tags needed; exclude by title/type as safety net
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
@@ -341,7 +350,8 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "linksoul",
     displayName: "Linksoul",
     domain: "linksoul.com",
-  
+    preferredImageIndex: 1,
+
     // Linksoul is a men's-only brand — all products tagged "men"
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's"],
