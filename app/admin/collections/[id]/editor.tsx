@@ -8,7 +8,7 @@ import {
   setCollectionHeroImage,
   removeCollectionHeroImage,
 } from "../actions";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uploadImageToStorage } from "@/app/admin/upload-image";
 import { slugify } from "../utils";
 import { ProductFinder } from "./product-finder";
 import { CollectionContents } from "./collection-contents";
@@ -266,6 +266,18 @@ function MetadataPanel({
   const [heroUploadError, setHeroUploadError] = useState<string | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleHeroImageUpload(file: File) {
     if (!file.type.startsWith("image/")) {
       setHeroUploadError("Only image files are allowed.");
@@ -278,25 +290,22 @@ function MetadataPanel({
     setHeroUploading(true);
     setHeroUploadError(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log("Session before upload:", JSON.stringify(sessionData));
-
       const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `collections/${collection.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("article-images")
-        .upload(path, file, { upsert: true });
-      if (uploadError) {
-        console.log("Storage upload error (full):", JSON.stringify(uploadError));
-        throw uploadError;
-      }
-      const { data: urlData } = supabase.storage
-        .from("article-images")
-        .getPublicUrl(path);
-      const result = await setCollectionHeroImage(collection.id, urlData.publicUrl);
+      const storagePath = `collections/${collection.id}/${Date.now()}.${ext}`;
+
+      // Convert file to base64 and upload server-side via service role key,
+      // bypassing Storage RLS entirely.
+      const base64 = await fileToBase64(file);
+      const { url, error: uploadError } = await uploadImageToStorage(
+        base64,
+        file.type,
+        storagePath
+      );
+      if (uploadError || !url) throw new Error(uploadError ?? "Upload failed.");
+
+      const result = await setCollectionHeroImage(collection.id, url);
       if (result.error) throw new Error(result.error);
-      onUpdate({ heroImageUrl: urlData.publicUrl });
+      onUpdate({ heroImageUrl: url });
     } catch (err) {
       setHeroUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {

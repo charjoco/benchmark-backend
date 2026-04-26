@@ -21,7 +21,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uploadImageToStorage } from "@/app/admin/upload-image";
 import {
   saveArticle,
   setArticleActive,
@@ -341,6 +341,19 @@ function SortableImageItem({
 
 // ── Images section ────────────────────────────────────────────────────────────
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the data URL prefix (e.g. "data:image/jpeg;base64,")
+      resolve(result.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function ImagesSection({
   articleId,
   initialImages,
@@ -375,36 +388,23 @@ function ImagesSection({
     setUploading(true);
     setUploadError(null);
 
-    const supabase = createSupabaseBrowserClient();
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log("Session before upload:", JSON.stringify(sessionData));
-
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-    const path = `${articleId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const storagePath = `${articleId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    let storageError;
-    try {
-      const result = await supabase.storage
-        .from("article-images")
-        .upload(path, file, { contentType: file.type });
-      storageError = result.error;
-      if (storageError) console.log("Storage upload error (full):", JSON.stringify(storageError));
-    } catch (err) {
-      console.log("Storage upload exception:", err);
-      setUploadError("Upload failed unexpectedly.");
+    // Convert file to base64 and upload server-side via service role key,
+    // bypassing Storage RLS entirely.
+    const base64 = await fileToBase64(file);
+    const { url: publicUrl, error: uploadErr } = await uploadImageToStorage(
+      base64,
+      file.type,
+      storagePath
+    );
+
+    if (uploadErr || !publicUrl) {
+      setUploadError(uploadErr ?? "Upload failed.");
       setUploading(false);
       return;
     }
-
-    if (storageError) {
-      setUploadError(storageError.message);
-      setUploading(false);
-      return;
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("article-images").getPublicUrl(path);
 
     const result = await addImageToArticle(articleId, { imageUrl: publicUrl, altText: "" });
     setUploading(false);
