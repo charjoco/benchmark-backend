@@ -279,17 +279,18 @@ function MetadataPanel({
     setHeroUploadError(null);
     try {
       const supabase = createSupabaseBrowserClient();
-      // Ensure the session is loaded from cookies before making the storage
-      // request — without this, the client may not yet have the auth token
-      // and the upload will go out with the anon key, failing RLS.
-      await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("Session before upload:", JSON.stringify(sessionData));
 
       const ext = file.name.split(".").pop() ?? "jpg";
       const path = `collections/${collection.id}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("article-images")
         .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.log("Storage upload error (full):", JSON.stringify(uploadError));
+        throw uploadError;
+      }
       const { data: urlData } = supabase.storage
         .from("article-images")
         .getPublicUrl(path);

@@ -376,17 +376,25 @@ function ImagesSection({
     setUploadError(null);
 
     const supabase = createSupabaseBrowserClient();
-    // Ensure the session is loaded from cookies before making the storage
-    // request — without this, the client may not yet have the auth token
-    // and the upload will go out with the anon key, failing RLS.
-    await supabase.auth.getSession();
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log("Session before upload:", JSON.stringify(sessionData));
 
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
     const path = `${articleId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    const { error: storageError } = await supabase.storage
-      .from("article-images")
-      .upload(path, file, { contentType: file.type });
+    let storageError;
+    try {
+      const result = await supabase.storage
+        .from("article-images")
+        .upload(path, file, { contentType: file.type });
+      storageError = result.error;
+      if (storageError) console.log("Storage upload error (full):", JSON.stringify(storageError));
+    } catch (err) {
+      console.log("Storage upload exception:", err);
+      setUploadError("Upload failed unexpectedly.");
+      setUploading(false);
+      return;
+    }
 
     if (storageError) {
       setUploadError(storageError.message);
