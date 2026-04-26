@@ -12,6 +12,7 @@ export async function GET() {
       name: true,
       slug: true,
       description: true,
+      heroImageUrl: true,
       heroProduct: {
         select: { id: true, title: true, imageUrl: true },
       },
@@ -25,6 +26,7 @@ export async function GET() {
       name: c.name,
       slug: c.slug,
       description: c.description,
+      heroImageUrl: c.heroImageUrl,
       heroProduct: c.heroProduct,
       productCount: c._count.products,
     })),

@@ -53,6 +53,7 @@ export default async function CollectionEditorPage({
     description: collection.description,
     isActive: collection.isActive,
     heroProductId: collection.heroProductId,
+    heroImageUrl: collection.heroImageUrl,
     lastEditedAt: collection.lastEditedAt.toISOString(),
     lastEditedBy: collection.lastEditedBy,
     heroProduct: collection.heroProduct,

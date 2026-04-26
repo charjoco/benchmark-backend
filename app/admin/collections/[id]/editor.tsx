@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import {
   updateCollectionMeta,
   setCollectionActive,
   deleteCollection,
+  setCollectionHeroImage,
+  removeCollectionHeroImage,
 } from "../actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { slugify } from "../utils";
 import { ProductFinder } from "./product-finder";
 import { CollectionContents } from "./collection-contents";
@@ -37,6 +40,7 @@ export type EditorCollection = {
   description: string | null;
   isActive: boolean;
   heroProductId: string | null;
+  heroImageUrl: string | null;
   lastEditedAt: string;
   lastEditedBy: string | null;
   heroProduct: { id: string; title: string; imageUrl: string } | null;
@@ -258,6 +262,48 @@ function MetadataPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const [heroUploading, setHeroUploading] = useState(false);
+  const [heroUploadError, setHeroUploadError] = useState<string | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleHeroImageUpload(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setHeroUploadError("Only image files are allowed.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setHeroUploadError("Image must be under 5 MB.");
+      return;
+    }
+    setHeroUploading(true);
+    setHeroUploadError(null);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `collections/${collection.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("article-images")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from("article-images")
+        .getPublicUrl(path);
+      const result = await setCollectionHeroImage(collection.id, urlData.publicUrl);
+      if (result.error) throw new Error(result.error);
+      onUpdate({ heroImageUrl: urlData.publicUrl });
+    } catch (err) {
+      setHeroUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setHeroUploading(false);
+      if (heroFileInputRef.current) heroFileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemoveHeroImage() {
+    const result = await removeCollectionHeroImage(collection.id);
+    if (!result.error) onUpdate({ heroImageUrl: null });
+  }
+
   function handleNameChange(value: string) {
     setName(value);
     if (!slugDirty) {
@@ -340,9 +386,30 @@ function MetadataPanel({
         METADATA
       </p>
 
-      {/* Hero preview */}
+      {/* Hero image */}
       <div>
-        <label style={labelStyle}>HERO IMAGE</label>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>HERO IMAGE</label>
+          {collection.heroImageUrl && (
+            <button
+              onClick={handleRemoveHeroImage}
+              style={{
+                backgroundColor: "transparent",
+                border: "none",
+                color: "#71717a",
+                fontSize: 10,
+                fontFamily: "monospace",
+                cursor: "pointer",
+                padding: 0,
+                letterSpacing: 0.5,
+              }}
+            >
+              × REMOVE
+            </button>
+          )}
+        </div>
+
+        {/* Image preview */}
         <div
           style={{
             width: "100%",
@@ -354,22 +421,73 @@ function MetadataPanel({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            marginBottom: 8,
           }}
         >
-          {collection.heroProduct ? (
+          {collection.heroImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={collection.heroProduct.imageUrl}
-              alt={collection.heroProduct.title}
+              src={collection.heroImageUrl}
+              alt="Custom hero"
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
+          ) : collection.heroProduct ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={collection.heroProduct.imageUrl}
+                alt={collection.heroProduct.title}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </>
           ) : (
             <span style={{ fontSize: 11, color: "#3f3f46" }}>No hero set</span>
           )}
         </div>
-        {collection.heroProduct && (
-          <p style={{ fontSize: 10, color: "#52525b", marginTop: 4, margin: "4px 0 0" }}>
-            {collection.heroProduct.title}
+
+        {/* Source label */}
+        {collection.heroImageUrl ? (
+          <p style={{ fontSize: 10, color: "#52525b", margin: "0 0 8px" }}>
+            Custom image
+          </p>
+        ) : collection.heroProduct ? (
+          <p style={{ fontSize: 10, color: "#52525b", margin: "0 0 8px" }}>
+            From product: {collection.heroProduct.title}
+          </p>
+        ) : null}
+
+        {/* Upload button */}
+        <input
+          ref={heroFileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleHeroImageUpload(file);
+          }}
+        />
+        <button
+          onClick={() => heroFileInputRef.current?.click()}
+          disabled={heroUploading}
+          style={{
+            width: "100%",
+            padding: "7px 10px",
+            backgroundColor: "transparent",
+            border: "1px solid #27272a",
+            borderRadius: 4,
+            fontFamily: "monospace",
+            fontSize: 10,
+            letterSpacing: 1,
+            color: heroUploading ? "#52525b" : "#a1a1aa",
+            cursor: heroUploading ? "wait" : "pointer",
+          }}
+        >
+          {heroUploading ? "UPLOADING…" : collection.heroImageUrl ? "REPLACE IMAGE" : "UPLOAD CUSTOM IMAGE"}
+        </button>
+        {heroUploadError && (
+          <p style={{ fontSize: 11, color: "#f87171", margin: "6px 0 0" }}>
+            {heroUploadError}
           </p>
         )}
       </div>

@@ -72,6 +72,7 @@ model Collection {
   isActive      Boolean             @default(false)
   heroProductId String?
   heroProduct   Product?            @relation("CollectionHero", fields: [heroProductId], references: [id])
+  heroImageUrl  String?
   products      CollectionProduct[]
   lastEditedAt  DateTime            @updatedAt
   lastEditedBy  String?             // Supabase user ID of last editor

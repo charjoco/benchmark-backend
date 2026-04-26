@@ -214,6 +214,33 @@ export async function reorderCollectionProducts(
   return {};
 }
 
+// ── Hero image ────────────────────────────────────────────────────────────────
+
+export async function setCollectionHeroImage(
+  id: string,
+  url: string
+): Promise<{ error?: string }> {
+  const userId = await getCurrentUserId();
+  await prisma.collection.update({
+    where: { id },
+    data: { heroImageUrl: url, lastEditedBy: userId },
+  });
+  revalidatePath(`/admin/collections/${id}`);
+  return {};
+}
+
+export async function removeCollectionHeroImage(
+  id: string
+): Promise<{ error?: string }> {
+  const userId = await getCurrentUserId();
+  await prisma.collection.update({
+    where: { id },
+    data: { heroImageUrl: null, lastEditedBy: userId },
+  });
+  revalidatePath(`/admin/collections/${id}`);
+  return {};
+}
+
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 export async function deleteCollection(id: string) {

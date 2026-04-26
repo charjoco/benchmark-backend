@@ -16,6 +16,7 @@ export async function GET(
       name: true,
       slug: true,
       description: true,
+      heroImageUrl: true,
       products: {
         orderBy: { position: "asc" },
         select: {
@@ -60,6 +61,7 @@ export async function GET(
     name: collection.name,
     slug: collection.slug,
     description: collection.description,
+    heroImageUrl: collection.heroImageUrl,
     products: collection.products.map((cp) => ({
       ...cp.product,
       colorways: JSON.parse(cp.product.colorways),
