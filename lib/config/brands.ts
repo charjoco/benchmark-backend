@@ -76,7 +76,8 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "asrv",
     displayName: "ASRV",
     domain: "asrv.com",
-  
+    preferredImageIndex: 1,
+
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "female", "gender:female", "gender:w", "gender:women", "WOMENS"],
     // ASRV women's products use "W0XX." title prefix; men's limited use "WN'XX" (not excluded)
