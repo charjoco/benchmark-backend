@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 // The service role key bypasses RLS entirely — no browser session required.
 // Called from client components; the file is serialized to base64 in the
 // browser and decoded back to a Buffer here on the server.
+// Requires SUPABASE_SERVICE_ROLE_KEY in Railway environment variables.
 export async function uploadImageToStorage(
   base64: string,
   mimeType: string,

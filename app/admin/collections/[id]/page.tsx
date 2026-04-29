@@ -13,35 +13,44 @@ export default async function CollectionEditorPage({
 }) {
   const { id } = await params;
 
+  console.log("[collection-editor-page] NEXT_PUBLIC_SUPABASE_URL defined:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log("[collection-editor-page] NEXT_PUBLIC_SUPABASE_ANON_KEY defined:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const collection = await prisma.collection.findUnique({
-    where: { id },
-    include: {
-      heroProduct: {
-        select: { id: true, title: true, imageUrl: true },
-      },
-      products: {
-        orderBy: { position: "asc" },
-        include: {
-          product: {
-            select: {
-              id: true,
-              title: true,
-              brand: true,
-              price: true,
-              imageUrl: true,
-              category: true,
-              inStock: true,
+  let collection;
+  try {
+    collection = await prisma.collection.findUnique({
+      where: { id },
+      include: {
+        heroProduct: {
+          select: { id: true, title: true, imageUrl: true },
+        },
+        products: {
+          orderBy: { position: "asc" },
+          include: {
+            product: {
+              select: {
+                id: true,
+                title: true,
+                brand: true,
+                price: true,
+                imageUrl: true,
+                category: true,
+                inStock: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error("[collection-editor-page] prisma.collection.findUnique threw:", err);
+    throw err;
+  }
 
   if (!collection) notFound();
 
