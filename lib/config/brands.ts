@@ -249,29 +249,6 @@ export const BRANDS: BrandConfig[] = [
     },
   },
   {
-    brandKey: "public-rec",
-    displayName: "Public Rec",
-    domain: "www.publicrec.com",
-  
-    mensInclusionTags: [],
-    womensExclusionTags: ["women", "womens", "women's"],
-    colorOptionNames: ["Color"],
-    newArrivalsHandle: "new-arrivals",
-    saleHandle: "mens-sale",
-    popularHandle: "mens-best-sellers",
-    // Color is option1, Size is option2 (e.g. "Cypress / S")
-    categoryMappings: {
-      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
-      shirts: { productTypes: ["T-Shirts", "Tees", "Polos"] },
-      longsleeve: { productTypes: ["T-Shirts", "Tees"], titleContains: ["long sleeve", "longsleeve"] },
-      zips: { productTypes: ["Sweatshirts"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
-      hoodies: { productTypes: ["Sweatshirts"], titleContains: ["hoodie", "pullover"] },
-      sweaters: { productTypes: ["Sweatshirts"], titleContains: ["crew", "crewneck", "sweatshirt", "fleece", "weekend"] },
-      shorts: { productTypes: ["Shorts", ""], titleContains: ["short"] },
-      pants: { productTypes: ["Pants", "Joggers"] },
-    },
-  },
-  {
     brandKey: "vuori",
     displayName: "Vuori",
     // vuoriclothing.com is headless Next.js; myshopify URL serves the JSON API

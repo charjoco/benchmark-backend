@@ -14,7 +14,7 @@ Supabase — user accounts, auth, preferences (sizes, favorite brands, color pre
 
 Keep this separation strict. Product data never goes in Supabase. User data never goes in Postgres.
 The brand list (18 brands)
-BYLT, ASRV, Buck Mason, Reigning Champ, Todd Snyder, Rhone, Mack Weldon, Vuori, Public Rec, Ten Thousand, Faherty, Holderness & Bourne, Linksoul, Paka, Taylor Stitch, TravisMathew, Greyson, Johnnie-O.
+BYLT, ASRV, Buck Mason, Reigning Champ, Todd Snyder, Rhone, Mack Weldon, Vuori, Ten Thousand, Faherty, Holderness & Bourne, Linksoul, Paka, Taylor Stitch, TravisMathew, Greyson, Johnnie-O, Peter Millar.
 Lululemon was previously included and has been intentionally removed. Do not re-add it without an explicit decision from Jason. Nordstrom and REI retailer enrichment scrapers were also removed.
 Ingestion architecture (the rules)
 These rules are the core of what makes Benchmark trustworthy. Violating them is what made the previous system unreliable.
