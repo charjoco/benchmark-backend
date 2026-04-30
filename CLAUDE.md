@@ -13,9 +13,11 @@ Neon Postgres — all scraped product data. Tables: Product, ScrapeLog. Connecte
 Supabase — user accounts, auth, preferences (sizes, favorite brands, color preferences), and user-saved/watched products. The mobile app reads/writes Supabase directly; the backend is not involved in user data.
 
 Keep this separation strict. Product data never goes in Supabase. User data never goes in Postgres.
-The brand list (18 brands)
-BYLT, ASRV, Buck Mason, Reigning Champ, Todd Snyder, Rhone, Mack Weldon, Vuori, Ten Thousand, Faherty, Holderness & Bourne, Linksoul, Paka, Taylor Stitch, TravisMathew, Greyson, Johnnie-O, Peter Millar.
+The brand list (17 brands)
+BYLT, ASRV, Buck Mason, Reigning Champ, Todd Snyder, Rhone, Mack Weldon, Vuori, Ten Thousand, Faherty, Holderness & Bourne, Linksoul, Paka, Taylor Stitch, TravisMathew, Greyson, Johnnie-O.
 Lululemon was previously included and has been intentionally removed. Do not re-add it without an explicit decision from Jason. Nordstrom and REI retailer enrichment scrapers were also removed.
+Public Rec was removed on 2026-04-30 and replaced with nothing (pending). Brand count is currently 17.
+Peter Millar investigation (2026-04-30): petermillar.com is behind Imperva Incapsula WAF — products.json is inaccessible to automated scrapers. All myshopify subdomain variants returned 404; Peter Millar runs on Salesforce Commerce Cloud (not Shopify), confirmed via robots.txt Demandware path. There is no products.json backdoor. Affiliate access requires Impact.com/Svorn integration. Decision: defer Peter Millar until after launch when user traction improves affiliate approval odds. Plan: build affiliate feed ingestion (Impact.com first, Svorn for Peter Millar later). Do not attempt to scrape Peter Millar directly.
 Ingestion architecture (the rules)
 These rules are the core of what makes Benchmark trustworthy. Violating them is what made the previous system unreliable.
 1. Shopify products.json is the only acquisition method. Every brand is on Shopify and exposes a public /products.json endpoint. This is the sole source of product data. Do not introduce HTML scraping, headless browsers, or email parsing. If a brand stops being on Shopify, that's a conversation, not a code change.
