@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_CONTEXTS = new Set(["collection", "article"]);
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+// Prisma @default(cuid()) produces ~25-char lowercase alphanumeric IDs starting with "c".
+// Range 24–30 gives a little room without accepting arbitrary strings or path fragments.
+const ID_RE = /^c[a-z0-9]{24,30}$/i;
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const MIME_TO_EXT: Record<string, string> = {
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid context." }, { status: 400 });
   }
 
-  if (typeof entityId !== "string" || !UUID_RE.test(entityId)) {
+  if (typeof entityId !== "string" || !ID_RE.test(entityId)) {
     return NextResponse.json({ error: "Invalid entityId." }, { status: 400 });
   }
 
