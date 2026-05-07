@@ -1345,7 +1345,9 @@ export function ArticleEditor({
               }}
             >
               <Toolbar editor={editor} />
-              <EditorContent editor={editor} />
+              <div style={{ overflowY: "auto", maxHeight: "60vh" }}>
+                <EditorContent editor={editor} />
+              </div>
             </div>
 
             {/* Images */}
