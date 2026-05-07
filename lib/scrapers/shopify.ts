@@ -4,7 +4,7 @@ import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
 import { resolveCategory } from "@/lib/normalize/category";
 import { isWomensProductImage, classifyCategoryViaVision } from "@/lib/normalize/vision";
 import type { BrandConfig } from "@/lib/config/brands";
-import type { UpsertableProduct, Colorway, SizeVariant } from "@/types";
+import type { AppCategory, UpsertableProduct, Colorway, SizeVariant } from "@/types";
 
 interface ShopifyVariant {
   id: number;
