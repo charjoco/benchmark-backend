@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import axios from "axios";
-import type { AppCategory } from "@/types";
+import type { AppCategory, VisionResult } from "@/types";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -12,14 +12,23 @@ const VALID_CATEGORIES = new Set<AppCategory>([
 /**
  * Uses Claude vision to classify a product image into an AppCategory.
  * Called as a fallback when rule-based categorization returns null.
- * Returns null if classification fails or returns an unrecognised value.
+ *
+ * Returns a typed VisionResult:
+ *   { category }                              — success
+ *   { category: null, reason: "inconclusive" } — Claude responded but result wasn't usable
+ *   { category: null, reason: "error" }        — transient failure (network, API down, etc.)
+ *
+ * Only "inconclusive" results should set the visionFailed flag on the product.
+ * "error" results should retry next scrape without marking the product.
  */
 export async function classifyCategoryViaVision(
   imageUrl: string,
   title: string,
   productType: string,
-): Promise<AppCategory | null> {
-  if (!imageUrl) return null;
+): Promise<VisionResult> {
+  if (!imageUrl) {
+    return { category: null, reason: "inconclusive", detail: "no image URL" };
+  }
 
   try {
     const imgRes = await axios.get<ArrayBuffer>(imageUrl, {
@@ -51,14 +60,26 @@ export async function classifyCategoryViaVision(
       ],
     });
 
-    const answer = response.content[0].type === "text"
+    const raw = response.content[0].type === "text"
       ? response.content[0].text.trim().toLowerCase()
       : "";
 
-    return VALID_CATEGORIES.has(answer as AppCategory) ? (answer as AppCategory) : null;
+    if (!raw) {
+      return { category: null, reason: "inconclusive", detail: "unparseable: (empty response)" };
+    }
+
+    if (VALID_CATEGORIES.has(raw as AppCategory)) {
+      return { category: raw as AppCategory };
+    }
+
+    return {
+      category: null,
+      reason: "inconclusive",
+      detail: `category-not-in-enum: ${raw.slice(0, 50)}`,
+    };
   } catch (err) {
     console.warn(`[Vision] Category classification failed for "${title}":`, err instanceof Error ? err.message : err);
-    return null;
+    return { category: null, reason: "error" };
   }
 }
 

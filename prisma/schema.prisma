@@ -37,8 +37,12 @@ model Product {
   priceDroppedAt DateTime?
   updatedAt      DateTime  @updatedAt
   // Admin fields
-  categoryOverride String?
-  isHidden         Boolean  @default(false)
+  categoryOverride   String?
+  isHidden           Boolean   @default(false)
+  // Vision failure tracking — prevents repeated API calls for unclassifiable products
+  visionFailed       Boolean   @default(false)
+  visionFailedAt     DateTime?
+  visionFailedReason String?
   // Relations
   collections      CollectionProduct[]
   heroFor          Collection[]        @relation("CollectionHero")

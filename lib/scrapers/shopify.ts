@@ -283,7 +283,7 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
 
   const existing = await prisma.product.findUnique({
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
-    select: { firstSeenAt: true, price: true, inStock: true, colorways: true },
+    select: { firstSeenAt: true, price: true, inStock: true, colorways: true, visionFailed: true },
   });
 
   // Vision screening: for brand-new products only, reject if Claude detects a woman in the image
@@ -366,6 +366,8 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
       isNew,
       lastSeenAt: now,
       ...(priceDroppedAt && { priceDroppedAt }),
+      // Clear vision failure flags on any successful categorization (recovery path)
+      ...(existing?.visionFailed && { visionFailed: false, visionFailedAt: null, visionFailedReason: null }),
     },
   });
 
@@ -423,25 +425,72 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
 
   let upserted = 0;
   let skipped = 0;
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
   for (const product of menProducts) {
-    let category = resolveCategory(product.product_type, product.tags, config, product.title);
+    const externalId = String(product.id);
+    const loopNow = new Date();
 
-    if (!category) {
-      // Rules didn't match — try Claude vision as fallback
-      const preferredIdx = config.preferredImageIndex ?? 0;
-      const primaryImage = (product.images[preferredIdx] ?? product.images[0])?.src ?? "";
-      category = await classifyCategoryViaVision(primaryImage, product.title, product.product_type);
-      if (category) {
-        console.log(`[${config.displayName}] Vision classified "${product.title}" → ${category}`);
-      } else {
-        console.debug(
-          `[${config.displayName}] Skipping "${product.title}" (type="${product.product_type}", tags=${product.tags.slice(0, 3).join(",")})`
-        );
+    // Pre-fetch fields needed for the category decision — indexed unique lookup, ~1ms
+    const precheck = await prisma.product.findUnique({
+      where: { brand_externalId: { brand: config.brandKey, externalId } },
+      select: { categoryOverride: true, visionFailed: true, visionFailedAt: true },
+    });
+
+    let category: AppCategory | null = null;
+
+    // Step 1: categoryOverride — admin has manually assigned a category; skip rules and vision
+    if (precheck?.categoryOverride) {
+      console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — categoryOverride: ${precheck.categoryOverride}`);
+      category = precheck.categoryOverride as AppCategory;
+    } else {
+      // Step 2: visionFailed TTL guard — skip vision for recently-failed products
+      const failedAt = precheck?.visionFailedAt;
+      if (precheck?.visionFailed && failedAt && (loopNow.getTime() - failedAt.getTime()) < SEVEN_DAYS_MS) {
+        const daysAgo = Math.floor((loopNow.getTime() - failedAt.getTime()) / 86400000);
+        console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — skipping (visionFailed ${daysAgo}d ago, TTL 7d)`);
         skipped++;
         continue;
       }
+
+      // Step 3: rule-based categorization
+      category = resolveCategory(product.product_type, product.tags, config, product.title);
+
+      if (category && precheck?.visionFailed) {
+        // Rules now match a previously-failed product — flags will be cleared in upsert below
+        console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — rules recovered (was visionFailed), flags clearing on upsert`);
+      }
+
+      if (!category) {
+        // Step 4: vision fallback — only for products where rules returned null
+        const preferredIdx = config.preferredImageIndex ?? 0;
+        const primaryImage = (product.images[preferredIdx] ?? product.images[0])?.src ?? "";
+        const result = await classifyCategoryViaVision(primaryImage, product.title, product.product_type);
+
+        if (result.category) {
+          category = result.category;
+          console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision → ${category}`);
+        } else if (result.reason === "inconclusive") {
+          console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision inconclusive (${result.detail ?? "—"})${precheck ? ", marking visionFailed" : ", new product skipped"}`);
+          if (precheck) {
+            await prisma.product.update({
+              where: { brand_externalId: { brand: config.brandKey, externalId } },
+              data: { visionFailed: true, visionFailedAt: loopNow, visionFailedReason: result.detail ?? "inconclusive" },
+            });
+          }
+          skipped++;
+          continue;
+        } else {
+          // reason === "error": transient failure, do not set visionFailed flag
+          console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision error (transient), not flagging`);
+          skipped++;
+          continue;
+        }
+      }
     }
+
+    // category is resolved — guard for TypeScript
+    if (!category) { skipped++; continue; }
 
     const colorGroups = groupVariantsByColor(product, config);
     const colorOptionIndex = getColorOptionIndex(product, config);

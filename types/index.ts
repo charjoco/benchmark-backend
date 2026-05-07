@@ -9,6 +9,10 @@ export type AppCategory =
   | "pants"
   | "jackets";
 
+export type VisionResult =
+  | { category: AppCategory }
+  | { category: null; reason: "inconclusive" | "error"; detail?: string };
+
 export type ColorBucket =
   | "Black"
   | "White"
