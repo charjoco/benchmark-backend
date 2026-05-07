@@ -1,5 +1,10 @@
 "use server";
 
+// @deprecated — use POST /api/admin/upload-image instead.
+// Passing base64 image data through a Server Action exceeds Next.js's internal
+// serialization limit ("Maximum array nesting exceeded"). Kept here until the
+// API route replacement is verified working in production.
+
 import { createClient } from "@supabase/supabase-js";
 
 // Diagnostic: log env var presence at module load time (not the values).

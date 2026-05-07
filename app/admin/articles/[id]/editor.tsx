@@ -21,7 +21,6 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { uploadImageToStorage } from "@/app/admin/upload-image";
 import {
   saveArticle,
   setArticleActive,
@@ -341,19 +340,6 @@ function SortableImageItem({
 
 // ── Images section ────────────────────────────────────────────────────────────
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Strip the data URL prefix (e.g. "data:image/jpeg;base64,")
-      resolve(result.split(",")[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function ImagesSection({
   articleId,
   initialImages,
@@ -388,25 +374,20 @@ function ImagesSection({
     setUploading(true);
     setUploadError(null);
 
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-    const storagePath = `${articleId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("context", "article");
+    formData.append("entityId", articleId);
+    const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
+    const json = await res.json();
 
-    // Convert file to base64 and upload server-side via service role key,
-    // bypassing Storage RLS entirely.
-    const base64 = await fileToBase64(file);
-    const { url: publicUrl, error: uploadErr } = await uploadImageToStorage(
-      base64,
-      file.type,
-      storagePath
-    );
-
-    if (uploadErr || !publicUrl) {
-      setUploadError(uploadErr ?? "Upload failed.");
+    if (!res.ok || json.error) {
+      setUploadError(json.error ?? "Upload failed.");
       setUploading(false);
       return;
     }
 
-    const result = await addImageToArticle(articleId, { imageUrl: publicUrl, altText: "" });
+    const result = await addImageToArticle(articleId, { imageUrl: json.url, altText: "" });
     setUploading(false);
 
     if (result.error) {

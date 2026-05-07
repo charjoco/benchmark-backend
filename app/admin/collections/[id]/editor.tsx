@@ -8,7 +8,6 @@ import {
   setCollectionHeroImage,
   removeCollectionHeroImage,
 } from "../actions";
-import { uploadImageToStorage } from "@/app/admin/upload-image";
 import { slugify } from "../utils";
 import { ProductFinder } from "./product-finder";
 import { CollectionContents } from "./collection-contents";
@@ -266,21 +265,9 @@ function MetadataPanel({
   const [heroUploadError, setHeroUploadError] = useState<string | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
-  function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(",")[1]);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
   async function handleHeroImageUpload(file: File) {
-    if (!file.type.startsWith("image/")) {
-      setHeroUploadError("Only image files are allowed.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setHeroUploadError("Only JPEG, PNG, or WebP images are allowed.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -290,22 +277,17 @@ function MetadataPanel({
     setHeroUploading(true);
     setHeroUploadError(null);
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const storagePath = `collections/${collection.id}/${Date.now()}.${ext}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("context", "collection");
+      formData.append("entityId", collection.id);
+      const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error ?? "Upload failed.");
 
-      // Convert file to base64 and upload server-side via service role key,
-      // bypassing Storage RLS entirely.
-      const base64 = await fileToBase64(file);
-      const { url, error: uploadError } = await uploadImageToStorage(
-        base64,
-        file.type,
-        storagePath
-      );
-      if (uploadError || !url) throw new Error(uploadError ?? "Upload failed.");
-
-      const result = await setCollectionHeroImage(collection.id, url);
+      const result = await setCollectionHeroImage(collection.id, json.url);
       if (result.error) throw new Error(result.error);
-      onUpdate({ heroImageUrl: url });
+      onUpdate({ heroImageUrl: json.url });
     } catch (err) {
       setHeroUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
