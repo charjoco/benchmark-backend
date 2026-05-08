@@ -16,7 +16,7 @@ export async function GET(
 
   const rows = await prisma.product.groupBy({
     by: ["category"],
-    where: { brand, inStock: true },
+    where: { brand, inStock: true, category: { not: null } },
     _count: { category: true },
   });
 

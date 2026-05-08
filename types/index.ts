@@ -66,7 +66,7 @@ export interface ProductRow {
   title: string;
   handle: string;
   productUrl: string;
-  category: string;
+  category: string | null;
   // Primary colorway (used for initial display / sort)
   colorName: string;
   colorBucket: string;

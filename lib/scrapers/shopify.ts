@@ -471,13 +471,35 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
           category = result.category;
           console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision → ${category}`);
         } else if (result.reason === "inconclusive") {
-          console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision inconclusive (${result.detail ?? "—"})${precheck ? ", marking visionFailed" : ", new product skipped"}`);
-          if (precheck) {
-            await prisma.product.update({
-              where: { brand_externalId: { brand: config.brandKey, externalId } },
-              data: { visionFailed: true, visionFailedAt: loopNow, visionFailedReason: result.detail ?? "inconclusive" },
-            });
-          }
+          console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision inconclusive (${result.detail ?? "—"}), saving stub row`);
+          const stubDomain = config.websiteDomain ?? config.domain;
+          await prisma.product.upsert({
+            where: { brand_externalId: { brand: config.brandKey, externalId } },
+            create: {
+              externalId,
+              brand: config.brandKey,
+              title: product.title,
+              handle: product.handle,
+              productUrl: `https://${stubDomain}/products/${product.handle}`,
+              category: null,
+              colorName: "",
+              colorBucket: "",
+              imageUrl: primaryImage,
+              price: 0,
+              colorways: "[]",
+              colorBuckets: "",
+              sizes: "[]",
+              inStock: false,
+              visionFailed: true,
+              visionFailedAt: loopNow,
+              visionFailedReason: result.detail ?? "inconclusive",
+            },
+            update: {
+              visionFailed: true,
+              visionFailedAt: loopNow,
+              visionFailedReason: result.detail ?? "inconclusive",
+            },
+          });
           skipped++;
           continue;
         } else {

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const rows = await prisma.product.groupBy({
     by: ["category"],
-    where: { inStock: true },
+    where: { inStock: true, category: { not: null } },
     _count: { category: true },
   });
 

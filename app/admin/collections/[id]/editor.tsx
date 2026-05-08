@@ -21,7 +21,7 @@ export type EditorProduct = {
   brand: string;
   price: number;
   imageUrl: string;
-  category: string;
+  category: string | null;
   inStock: boolean;
 };
 

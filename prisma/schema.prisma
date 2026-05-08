@@ -14,7 +14,7 @@ model Product {
   title          String
   handle         String
   productUrl     String
-  category       String
+  category       String?
   // Primary colorway (first / cheapest) — kept as top-level for easy sorting/display
   colorName      String
   colorBucket    String

@@ -53,7 +53,7 @@ export type EditorArticleProduct = {
     brand: string;
     price: number;
     imageUrl: string;
-    category: string;
+    category: string | null;
     inStock: boolean;
   };
 };
@@ -522,7 +522,7 @@ type ProductSearchResult = {
   brand: string;
   price: number;
   imageUrl: string;
-  category: string;
+  category: string | null;
   inStock: boolean;
 };
 

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (pairs.length === 0) return NextResponse.json({ products: [] });
 
   const rawProducts = await prisma.product.findMany({
-    where: { OR: pairs.map((p) => ({ brand: p.brand, externalId: p.externalId })) },
+    where: { OR: pairs.map((p) => ({ brand: p.brand, externalId: p.externalId })), category: { not: null } },
   });
 
   const products = rawProducts.map((p) => ({

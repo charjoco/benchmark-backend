@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
 
   const sharedWhere = {
     inStock: true,
-    ...(category && { category }),
+    category: category ? category : { not: null },
     ...(onSale && { onSale: true }),
     ...(hideSaleInDefaultFeed && !drops && { OR: [{ onSale: false }, { isNew: true }] }),
     ...(isNew && { isNew: true }),
