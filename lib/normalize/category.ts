@@ -1,5 +1,6 @@
 import type { AppCategory } from "@/types";
 import type { BrandConfig } from "@/lib/config/brands";
+import { lookupGreysonCategory, GREYSON_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/greyson/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -16,14 +17,32 @@ const PRIORITY_ORDER: AppCategory[] = [
   "pants",
 ];
 
+/** Returns true for product types that should be skipped entirely — no rules, no vision, no stub row. */
+export function isExcludedProductType(brand: string, productType: string): boolean {
+  const normalized = productType.toLowerCase().trim();
+  if (brand === "greyson") return GREYSON_EXCLUDED_PRODUCT_TYPES.has(normalized);
+  return false;
+}
+
 export function resolveCategory(
+  brand: string,
   productType: string,
   tags: string[],
   config: BrandConfig,
   title = ""
 ): AppCategory | null {
+  // Greyson: deterministic product_type map runs before legacy keyword rules
+  if (brand === "greyson" && productType) {
+    const greysonCategory = lookupGreysonCategory(productType);
+    if (greysonCategory) {
+      console.log(`[scraper/categorize/greyson] mapped "${productType}" → "${greysonCategory}"`);
+      return greysonCategory;
+    }
+    // Unknown type — fall through to legacy rules for forward-compatibility
+  }
+
   // Normalize curly apostrophes (U+2019 → U+0027) for consistent matching (e.g. BYLT's product types)
-  const normalizeStr = (s: string) => s.toLowerCase().trim().replace(/\u2019/g, "'");
+  const normalizeStr = (s: string) => s.toLowerCase().trim().replace(/’/g, "'");
   const normalizedType = normalizeStr(productType);
   const normalizedTags = tags.map((t) => t.toLowerCase().trim());
   const normalizedTitle = title.toLowerCase();

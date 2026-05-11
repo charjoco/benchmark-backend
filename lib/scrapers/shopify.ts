@@ -1,7 +1,7 @@
 import axios from "axios";
 import { prisma } from "@/lib/prisma";
 import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
-import { resolveCategory } from "@/lib/normalize/category";
+import { resolveCategory, isExcludedProductType } from "@/lib/normalize/category";
 import { isWomensProductImage, classifyCategoryViaVision } from "@/lib/normalize/vision";
 import type { BrandConfig } from "@/lib/config/brands";
 import type { AppCategory, UpsertableProduct, Colorway, SizeVariant } from "@/types";
@@ -452,6 +452,15 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       }
       category = precheck.category as AppCategory;
     } else {
+      // Step 3a: exclusion — known non-apparel types skip vision and stub entirely
+      // TODO: cleanup task — products that were previously stub-rowed (visionFailed=true)
+      // but are now in an exclusion list should be deleted from the DB. Not handled here.
+      if (isExcludedProductType(config.brandKey, product.product_type)) {
+        console.log(`[scraper/categorize/${config.brandKey}] excluded productType "${product.product_type}"`);
+        skipped++;
+        continue;
+      }
+
       // Step 3: visionFailed TTL guard — only reached for truly uncategorized products
       const failedAt = precheck?.visionFailedAt;
       if (precheck?.visionFailed && failedAt && (loopNow.getTime() - failedAt.getTime()) < SEVEN_DAYS_MS) {
@@ -462,7 +471,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       }
 
       // Step 4: rule-based categorization
-      category = resolveCategory(product.product_type, product.tags, config, product.title);
+      category = resolveCategory(config.brandKey, product.product_type, product.tags, config, product.title);
 
       if (category && precheck?.visionFailed) {
         // Rules now match a previously-failed product — flags will be cleared in upsert below
