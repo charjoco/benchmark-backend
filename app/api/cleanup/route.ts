@@ -4,20 +4,38 @@ import { isWomensProductImage } from "@/lib/normalize/vision";
 
 export const dynamic = "force-dynamic";
 
-// Title keywords that unambiguously identify women's products (checked case-insensitive)
 const WOMENS_TITLE_KEYWORDS = [
   "dress", "skort", "skirt", "romper", "jumpsuit", "legging",
   "sports bra", "crop top", "bikini", "thong", "women's", "womens",
 ];
 
+const MAX_LIMIT = 500;
+const DEFAULT_LIMIT = 50;
+
 /**
  * POST /api/cleanup
- * First does a fast rule-based pass to delete obvious women's products by title,
- * then optionally runs Claude vision on remaining products.
- * Pass { brand } to limit to one brand, { visionScan: false } to skip vision.
- * Runs in background — returns immediately with a started message.
+ * Requires x-scrape-secret header.
+ * Query params:
+ *   confirm=true   — required to proceed (omit to get a dry-run count with no side effects)
+ *   dryRun=true    — run selection logic and report without calling Anthropic or deleting
+ *   limit=N        — max products to vision-scan (default 50, max 500)
+ * Body (JSON, optional):
+ *   brand          — limit to one brand
+ *   visionScan     — false to skip the vision pass (default true)
  */
 export async function POST(req: NextRequest) {
+  // Explicit auth — belt and suspenders; /api/cleanup is outside the middleware matcher
+  const secret = req.headers.get("x-scrape-secret");
+  if (!process.env.SCRAPE_SECRET || secret !== process.env.SCRAPE_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = req.nextUrl;
+  const confirm = searchParams.get("confirm") === "true";
+  const dryRun = searchParams.get("dryRun") === "true";
+  const limitParam = parseInt(searchParams.get("limit") ?? String(DEFAULT_LIMIT));
+  const limit = Math.min(Math.max(1, isNaN(limitParam) ? DEFAULT_LIMIT : limitParam), MAX_LIMIT);
+
   let brand: string | null = null;
   let visionScan = true;
   try {
@@ -26,25 +44,52 @@ export async function POST(req: NextRequest) {
     if (body?.visionScan === false) visionScan = false;
   } catch { /* no body */ }
 
-  // Run async — don't block the response
-  runCleanup(brand, visionScan).catch(console.error);
+  // Without confirm or dryRun, return a preview of impact and refuse to proceed
+  if (!confirm && !dryRun) {
+    const totalProducts = await prisma.product.count({
+      where: brand ? { brand } : undefined,
+    });
+    return NextResponse.json(
+      {
+        error: "confirm=true required",
+        message: `Would scan up to ${Math.min(totalProducts, limit)} of ${totalProducts} products${brand ? ` for brand "${brand}"` : " across all brands"}. Add ?confirm=true to proceed, or ?dryRun=true to simulate.`,
+        totalProducts,
+        limit,
+        visionScan,
+      },
+      { status: 400 }
+    );
+  }
+
+  runCleanup(brand, visionScan, limit, dryRun).catch(console.error);
 
   return NextResponse.json({
-    message: brand
-      ? `Cleanup started for brand: ${brand}`
-      : "Cleanup started for all brands",
+    message: dryRun
+      ? `Dry run started${brand ? ` for brand: ${brand}` : " for all brands"}`
+      : `Cleanup started${brand ? ` for brand: ${brand}` : " for all brands"}`,
+    limit,
+    dryRun,
+    visionScan,
   });
 }
 
-async function runCleanup(brand: string | null, visionScan: boolean): Promise<void> {
-  console.log(`[Cleanup] Starting cleanup${brand ? ` for ${brand}` : " for all brands"}...`);
+async function runCleanup(
+  brand: string | null,
+  visionScan: boolean,
+  limit: number,
+  dryRun: boolean,
+): Promise<void> {
+  console.warn(
+    `[Cleanup] Starting — brand=${brand ?? "all"} visionScan=${visionScan} limit=${limit} dryRun=${dryRun}`
+  );
 
   const products = await prisma.product.findMany({
     where: brand ? { brand } : undefined,
     select: { id: true, brand: true, title: true, imageUrl: true },
+    take: limit,
   });
 
-  console.log(`[Cleanup] ${products.length} products to check`);
+  console.log(`[Cleanup] ${products.length} products loaded (limit=${limit})`);
 
   let deleted = 0;
 
@@ -56,20 +101,27 @@ async function runCleanup(brand: string | null, visionScan: boolean): Promise<vo
       WOMENS_TITLE_KEYWORDS.some((kw) => titleLower.includes(kw)) ||
       titleLower.startsWith("women");
     if (isObviousWomens) {
-      await prisma.product.delete({ where: { id: p.id } });
-      console.log(`[Cleanup] Rule-deleted: "${p.title}" (${p.brand})`);
+      if (!dryRun) {
+        await prisma.product.delete({ where: { id: p.id } });
+      }
+      console.log(`[Cleanup] ${dryRun ? "(dryRun) would delete" : "Rule-deleted"}: "${p.title}" (${p.brand})`);
       deleted++;
     } else {
       remaining.push(p);
     }
   }
-  console.log(`[Cleanup] Rule pass: deleted ${deleted}, ${remaining.length} remaining`);
+  console.log(`[Cleanup] Rule pass: ${dryRun ? "would delete" : "deleted"} ${deleted}, ${remaining.length} remaining`);
 
-  // Pass 2: vision scan on remaining products (if enabled)
+  // Pass 2: vision scan (if enabled)
   if (visionScan) {
     let visionDeleted = 0;
     for (const p of remaining) {
       try {
+        console.warn(`[Cleanup] Vision checking "${p.title}" (${p.brand})`);
+        if (dryRun) {
+          console.log(`[Cleanup] (dryRun) skipping actual vision call for "${p.title}"`);
+          continue;
+        }
         const isWomens = await isWomensProductImage(p.imageUrl);
         if (isWomens) {
           await prisma.product.delete({ where: { id: p.id } });
@@ -84,5 +136,5 @@ async function runCleanup(brand: string | null, visionScan: boolean): Promise<vo
     console.log(`[Cleanup] Vision pass: deleted ${visionDeleted}`);
   }
 
-  console.log(`[Cleanup] Done. Total deleted: ${deleted} out of ${products.length} scanned.`);
+  console.log(`[Cleanup] Done. Total ${dryRun ? "would-delete" : "deleted"}: ${deleted} of ${products.length} scanned.`);
 }

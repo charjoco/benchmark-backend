@@ -434,7 +434,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     // Pre-fetch fields needed for the category decision — indexed unique lookup, ~1ms
     const precheck = await prisma.product.findUnique({
       where: { brand_externalId: { brand: config.brandKey, externalId } },
-      select: { categoryOverride: true, visionFailed: true, visionFailedAt: true },
+      select: { categoryOverride: true, visionFailed: true, visionFailedAt: true, category: true, lastSeenAt: true },
     });
 
     let category: AppCategory | null = null;
@@ -443,8 +443,16 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     if (precheck?.categoryOverride) {
       console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — categoryOverride: ${precheck.categoryOverride}`);
       category = precheck.categoryOverride as AppCategory;
+    } else if (precheck?.category) {
+      // Step 2: already categorized — reuse existing category, skip rules and vision entirely.
+      // Also rescues the visionFailed=true + category IS NOT NULL artifact left by an older code
+      // path — those products fall through to upsertProduct, which clears the flag on update.
+      if (precheck.visionFailed) {
+        console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — reusing category "${precheck.category}", clearing stale visionFailed flag`);
+      }
+      category = precheck.category as AppCategory;
     } else {
-      // Step 2: visionFailed TTL guard — skip vision for recently-failed products
+      // Step 3: visionFailed TTL guard — only reached for truly uncategorized products
       const failedAt = precheck?.visionFailedAt;
       if (precheck?.visionFailed && failedAt && (loopNow.getTime() - failedAt.getTime()) < SEVEN_DAYS_MS) {
         const daysAgo = Math.floor((loopNow.getTime() - failedAt.getTime()) / 86400000);
@@ -453,7 +461,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
         continue;
       }
 
-      // Step 3: rule-based categorization
+      // Step 4: rule-based categorization
       category = resolveCategory(product.product_type, product.tags, config, product.title);
 
       if (category && precheck?.visionFailed) {
@@ -462,7 +470,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       }
 
       if (!category) {
-        // Step 4: vision fallback — only for products where rules returned null
+        // Step 5: vision fallback — only for products where rules returned null
         const preferredIdx = config.preferredImageIndex ?? 0;
         const primaryImage = (product.images[preferredIdx] ?? product.images[0])?.src ?? "";
         const result = await classifyCategoryViaVision(primaryImage, product.title, product.product_type);
