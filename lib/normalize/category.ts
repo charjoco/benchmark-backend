@@ -5,6 +5,7 @@ import type { BrandConfig } from "@/lib/config/brands";
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
 const PRIORITY_ORDER: AppCategory[] = [
   "jackets",
+  "vests",
   "zips",
   "longsleeve",
   "polos",
@@ -52,6 +53,7 @@ export function resolveCategory(
 
 export const CATEGORY_LABELS: Record<AppCategory, string> = {
   jackets: "Jackets & Coats",
+  vests: "Vests",
   shirts: "Shirts",
   polos: "Polos",
   longsleeve: "Long Sleeve",
@@ -64,6 +66,7 @@ export const CATEGORY_LABELS: Record<AppCategory, string> = {
 
 export const ALL_CATEGORIES: AppCategory[] = [
   "jackets",
+  "vests",
   "polos",
   "shirts",
   "longsleeve",

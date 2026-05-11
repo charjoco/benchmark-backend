@@ -423,6 +423,7 @@ export const BRANDS: BrandConfig[] = [
       pants:      { productTypes: ["Pant", "Jogger"] },
     },
   },
+  // Per-brand normalization config: see lib/brands/greyson/
   {
     brandKey: "greyson",
     displayName: "Greyson",
