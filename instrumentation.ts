@@ -32,15 +32,15 @@ export async function register() {
     }
   }
 
-  console.log("[Scheduler] Registering cron: scrape every hour");
+  console.log("[Scheduler] Registering cron: scrape every 4 hours");
 
-  // Scrape all brands every hour
-  cron.schedule("0 * * * *", async () => {
-    console.log("[Scheduler] Running hourly scrape...");
+  // Scrape all brands every 4 hours
+  cron.schedule("0 */4 * * *", async () => {
+    console.log("[Scheduler] Running scrape...");
     try {
       await runAllScrapers();
     } catch (err) {
-      console.error("[Scheduler] Hourly scrape failed:", err);
+      console.error("[Scheduler] Scrape failed:", err);
     }
   });
 
