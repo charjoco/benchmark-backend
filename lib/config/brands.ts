@@ -88,18 +88,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "latest-drops",
     saleHandle: "surplus-sale",
     popularHandle: "bestsellers",
-    categoryMappings: {
-      // longsleeve must come before shirts in resolution; titleContains restricts to LS products
-      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      longsleeve: { productTypes: ["Shirts", "Long Sleeve"], titleContains: ["long sleeve", "longsleeve"] },
-      polos: { productTypes: ["Polos"], tags: ["polo"] },
-      shirts: { productTypes: ["Shirts", "Short Sleeve", "T-Shirts"], tags: ["short sleeve", "tee", "t-shirt"] },
-      hoodies: { productTypes: ["Hoodies"], tags: ["hoodie", "pullover"] },
-      sweaters: { productTypes: ["Crewnecks", "Sweatshirts"], tags: ["crewneck", "sweatshirt", "crew"] },
-      zips: { productTypes: ["Zip Ups"], tags: ["zip", "quarter zip", "full zip", "half zip"] },
-      shorts: { productTypes: ["Shorts"] },
-      pants: { productTypes: ["Pants", "Joggers"], tags: ["jogger", "sweatpant"] },
-    },
+    categoryMappings: {}, // ASRV categorization is owned by lib/brands/asrv/categories.ts
   },
   {
     brandKey: "buck-mason",
