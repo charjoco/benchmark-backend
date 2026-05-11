@@ -61,7 +61,7 @@ export const BRANDS: BrandConfig[] = [
     popularHandle: "best-sellers",
     categoryMappings: {
       // productTypes match BYLT's type strings; type check uses .includes() so "Men's-Tops-Outerwear".includes("Outerwear") works
-      jackets: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
       longsleeve: { productTypes: ["Men's-Top-Long-Sleeves", "Men's-Tops-Long-Sleeves", "Mens-Tops-Long-Sleeves"] },
       polos: { productTypes: ["Men's-Tops-Polos", "Mens-Tops-Polos"] },
@@ -90,7 +90,7 @@ export const BRANDS: BrandConfig[] = [
     popularHandle: "bestsellers",
     categoryMappings: {
       // longsleeve must come before shirts in resolution; titleContains restricts to LS products
-      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       longsleeve: { productTypes: ["Shirts", "Long Sleeve"], titleContains: ["long sleeve", "longsleeve"] },
       polos: { productTypes: ["Polos"], tags: ["polo"] },
       shirts: { productTypes: ["Shirts", "Short Sleeve", "T-Shirts"], tags: ["short sleeve", "tee", "t-shirt"] },
@@ -118,7 +118,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "mens-new-arrivals",
     popularHandle: "best-sellers",
     categoryMappings: {
-      jackets: { productTypes: ["Outerwear", "Jackets"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Outerwear", "Jackets"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       longsleeve: { productTypes: ["Shirts", "Tees"], titleContains: ["long sleeve", "longsleeve"] },
       polos: { productTypes: ["Polos"] },
       shirts: { productTypes: ["Shirts", "Tees"] },
@@ -142,7 +142,7 @@ export const BRANDS: BrandConfig[] = [
     saleHandle: "mens-sale",
     // RC uses type="MENS" for everything — categories come from product title only
     categoryMappings: {
-      jackets: { productTypes: ["MENS"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["MENS"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["MENS"], titleContains: ["zip", "quarter-zip", "half-zip", "1/4 zip", "half zip", "quarter zip"] },
       longsleeve: { productTypes: ["MENS"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["MENS"], titleContains: ["t-shirt", "tee", "polo"] },
@@ -165,7 +165,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "new-arrivals",
     // Athleisure lives in "TS KNITS" and "Sweater" types — "Shirt" type is formal dress shirts
     categoryMappings: {
-      jackets: { productTypes: ["TS KNITS", "Outerwear", "Jacket", "Coat"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["TS KNITS", "Outerwear", "Jacket", "Coat"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["TS KNITS", "Sweater"], titleContains: ["zip"] },
       longsleeve: { productTypes: ["TS KNITS"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["TS KNITS", "Sweater"], titleContains: ["tee", "t-shirt", "polo"] },
@@ -191,7 +191,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks
     categoryMappings: {
-      jackets: { productTypes: ["Jackets", "Outerwear", "Midlayers"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Jackets", "Outerwear", "Midlayers"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["Midlayers", "Sweaters"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["Tees", "Shirts"], titleContains: ["long sleeve", "longsleeve"] },
       polos: { productTypes: ["Polos"] },
@@ -215,7 +215,7 @@ export const BRANDS: BrandConfig[] = [
     saleHandle: "sale",
     popularHandle: "bestsellers",
     categoryMappings: {
-      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       shirts: { productTypes: ["T-Shirts", "Short Sleeve"], tags: ["short sleeve", "t-shirt", "tee"] },
       longsleeve: { productTypes: ["Long Sleeve"], tags: ["long sleeve"] },
       hoodies: { productTypes: ["Hoodies"], tags: ["hoodie", "pullover"] },
@@ -237,8 +237,9 @@ export const BRANDS: BrandConfig[] = [
     saleHandle: "surplus-sale",
     popularHandle: "best-sellers",
     // product_type uses full names like "Interval Shirt", "Tactical Short" — keywords match via .includes()
+    // TODO: Ten Thousand has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
     categoryMappings: {
-      jackets: { productTypes: ["jacket", "coat", "vest", "shell", "anorak", "windbreaker"] },
+      jackets: { productTypes: ["jacket", "coat", "shell", "anorak", "windbreaker"] },
       longsleeve: { productTypes: ["long sleeve"] },
       shirts: { productTypes: ["shirt", "tee"] },
       hoodies: { productTypes: ["hoodie"] },
@@ -263,7 +264,7 @@ export const BRANDS: BrandConfig[] = [
     popularHandle: "bestsellers",
     // Vuori product types: Tops (tees/hoodies/crews/sweaters), Jackets & Hoodies, Shorts, Boardshorts, Pants, Joggers, Sweaters
     categoryMappings: {
-      jackets: { productTypes: ["Jackets & Hoodies"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Jackets & Hoodies"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["Jackets & Hoodies", "Tops"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
       longsleeve: { productTypes: ["Tops"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Tops", "Tanks"], titleContains: ["tee", "t-shirt", "polo", "short sleeve", "muscle", "v-neck", "tank", "henley"] },
@@ -289,7 +290,7 @@ export const BRANDS: BrandConfig[] = [
     popularHandle: "mens-best-sellers",
     // Product types use "Men's" prefix (e.g. "Men's Outerwear", "Men's Shorts")
     categoryMappings: {
-      jackets: { productTypes: ["Men's Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell", "cpo"] },
+      jackets: { productTypes: ["Men's Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell", "cpo"] },
       zips: { productTypes: ["Men's Outerwear", "Men's Knits", "Sweaters"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["Men's Shirts", "Men's Button Ups"], titleContains: ["long sleeve", "longsleeve"] },
       polos: { productTypes: ["Men's Shirts", "Men's Polos"], titleContains: ["polo"] },
@@ -313,8 +314,9 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "new-arrivals",
     popularHandle: "best-sellers",
     // H&B product types use "Mens" prefix (e.g. "Mens Layering Sweaters")
+    // TODO: Holderness & Bourne has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
     categoryMappings: {
-      jackets: { productTypes: ["Jacket", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Jacket", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["Sweater", "Layer", "Pullover"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["Shirt", "Top"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Polo", "Shirt", "Top"], titleContains: ["polo", "shirt", "tee", "t-shirt"] },
@@ -338,8 +340,9 @@ export const BRANDS: BrandConfig[] = [
     saleHandle: "sale",
     popularHandle: "best-sellers",
     // Linksoul product types: Polo, T-Shirt, Layer, Pant, Short, etc.
+    // TODO: Linksoul has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
     categoryMappings: {
-      jackets: { productTypes: ["Jacket", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "vest", "windbreaker", "anorak"] },
+      jackets: { productTypes: ["Jacket", "Outerwear"], titleContains: ["jacket", "coat", "windbreaker", "anorak"] },
       zips: { productTypes: ["Layer", "Pullover"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["T-Shirt", "Shirt", "Layer"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Polo", "T-Shirt", "Shirt"] },
@@ -361,8 +364,9 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "mens-new-arrivals",
     popularHandle: "best-sellers",
     // Paka product types use category hierarchy format (e.g. "Clothing > Tops > Sweaters")
+    // TODO: Paka has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
     categoryMappings: {
-      jackets: { productTypes: ["Jackets", "Outerwear", "Vest"], titleContains: ["jacket", "coat", "vest", "windbreaker"] },
+      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "windbreaker"] },
       zips: { productTypes: ["Hoodies", "Fleece"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["Tops", "Shirts"], titleContains: ["long sleeve", "longsleeve"] },
       shirts: { productTypes: ["Tops", "T-Shirts", "Polos", "Shirts"] },
@@ -386,7 +390,7 @@ export const BRANDS: BrandConfig[] = [
     saleHandle: "mens-last-call",
     popularHandle: "mens-best-sellers",
     categoryMappings: {
-      jackets: { productTypes: ["Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "vest", "shell"] },
+      jackets: { productTypes: ["Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
       zips: { productTypes: ["Outerwear", "Wovens"], titleContains: ["zip", "quarter-zip", "half-zip"] },
       longsleeve: { productTypes: ["Wovens"], titleContains: ["long sleeve", "longsleeve", "flannel", "chamois"] },
       shirts: { productTypes: ["Wovens"], titleContains: ["shirt", "tee", "polo", "henley"] },
@@ -411,8 +415,9 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-sale",
     // Product types are explicit and self-describing — no titleContains needed where type is unambiguous.
+    // TODO: TravisMathew has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
     categoryMappings: {
-      jackets:    { productTypes: ["Jacket", "Vest", "Bomber", "Shacket"] },
+      jackets:    { productTypes: ["Jacket", "Bomber", "Shacket"] },
       zips:       { productTypes: ["Quarter Zip", "Half Zip", "Full Zip"] },
       longsleeve: { productTypes: ["Tee"], titleContains: ["long sleeve", "longsleeve"] },
       polos:      { productTypes: ["Polo"] },
@@ -435,17 +440,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "men-clothing-new-arrivals",
     saleHandle: "mens-sale",
-    categoryMappings: {
-      jackets: { titleContains: ["jacket", "coat", "vest", "anorak", "windbreaker", "pullover quarter"] },
-      zips: { titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
-      longsleeve: { titleContains: ["long sleeve", "longsleeve", "mock neck"] },
-      polos: { productTypes: ["mens polos"], titleContains: ["polo"] },
-      shirts: { titleContains: ["tee", "t-shirt", "henley"] },
-      hoodies: { titleContains: ["hoodie", "pullover", "sweatshirt"] },
-      sweaters: { titleContains: ["crew", "crewneck", "sweater", "cardigan", "fleece"] },
-      shorts: { titleContains: ["short"] },
-      pants: { titleContains: ["pant", "jogger", "trouser"] },
-    },
+    categoryMappings: {}, // Greyson categorization is owned by lib/brands/greyson/categories.ts
   },
   {
     brandKey: "johnnie-o",
@@ -458,7 +453,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     categoryMappings: {
-      jackets: { titleContains: ["jacket", "coat", "vest", "anorak", "windbreaker", "shell"] },
+      jackets: { titleContains: ["jacket", "coat", "anorak", "windbreaker", "shell"] },
       zips: { titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
       longsleeve: { titleContains: ["long sleeve", "longsleeve"] },
       polos: { titleContains: ["polo"] },
