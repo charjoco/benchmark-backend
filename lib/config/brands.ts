@@ -80,8 +80,8 @@ export const BRANDS: BrandConfig[] = [
 
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "female", "gender:female", "gender:w", "gender:women", "WOMENS"],
-    // ASRV women's products use "W0XX." title prefix; men's limited use "WN'XX" (not excluded)
-    womensTitlePrefixes: ["W0"],
+    // ASRV women's products use "W0XX." or "WN'XX" title prefix (e.g. WN'22, WN'21)
+    womensTitlePrefixes: ["W0", "WN"],
     colorOptionNames: ["Color", "Colour"],
     // ASRV embeds color in product title (e.g. "Relaxed Tee - Black"), not as a variant option
     colorSource: "title",
