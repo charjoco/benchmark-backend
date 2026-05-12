@@ -45,7 +45,7 @@ function resolveSweatshirts(title: string): AppCategory {
  * Returns null for unmapped types (unknown future types fall through to vision).
  * Call ASRV_EXCLUDED_PRODUCT_TYPES.has() first to short-circuit non-apparel.
  */
-export function lookupAsrvCategory(productType: string, title = ""): AppCategory | null {
+export function lookupAsrvCategory(productType: string, _tags: string[] = [], title = ""): AppCategory | null {
   const normalized = productType.toLowerCase().trim();
   if (normalized === "sweatshirts") return resolveSweatshirts(title);
   return MAP[normalized] ?? null;

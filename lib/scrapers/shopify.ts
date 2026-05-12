@@ -455,7 +455,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       // Step 3a: exclusion — known non-apparel types skip vision and stub entirely
       // TODO: cleanup task — products that were previously stub-rowed (visionFailed=true)
       // but are now in an exclusion list should be deleted from the DB. Not handled here.
-      if (isExcludedProductType(config.brandKey, product.product_type)) {
+      if (isExcludedProductType(config.brandKey, product.product_type, product.tags, product.title)) {
         console.log(`[scraper/categorize/${config.brandKey}] excluded productType "${product.product_type}"`);
         skipped++;
         continue;

@@ -38,6 +38,6 @@ const MAP: Record<string, AppCategory> = {
  * Returns null for unmapped types (unknown future types fall through to vision).
  * Call GREYSON_EXCLUDED_PRODUCT_TYPES.has() first to short-circuit non-apparel.
  */
-export function lookupGreysonCategory(productType: string, _title = ""): AppCategory | null {
+export function lookupGreysonCategory(productType: string, _tags: string[] = [], _title = ""): AppCategory | null {
   return MAP[productType.toLowerCase().trim()] ?? null;
 }

@@ -2,6 +2,7 @@ import type { AppCategory } from "@/types";
 import type { BrandConfig } from "@/lib/config/brands";
 import { lookupGreysonCategory, GREYSON_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/greyson/categories";
 import { lookupAsrvCategory, ASRV_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/asrv/categories";
+import { lookupTravisMathewCategory, isExcludedLicensedSports, TM_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/travis-mathew/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -18,11 +19,19 @@ const PRIORITY_ORDER: AppCategory[] = [
   "pants",
 ];
 
-/** Returns true for product types that should be skipped entirely — no rules, no vision, no stub row. */
-export function isExcludedProductType(brand: string, productType: string): boolean {
+/** Returns true for products that should be skipped entirely — no rules, no vision, no stub row. */
+export function isExcludedProductType(
+  brand: string,
+  productType: string,
+  tags: string[] = [],
+  title = ""
+): boolean {
   const normalized = productType.toLowerCase().trim();
   if (brand === "greyson") return GREYSON_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
+  if (brand === "travis-mathew") {
+    return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
+  }
   return false;
 }
 
@@ -35,7 +44,7 @@ export function resolveCategory(
 ): AppCategory | null {
   // Greyson: deterministic product_type map runs before legacy keyword rules
   if (brand === "greyson" && productType) {
-    const greysonCategory = lookupGreysonCategory(productType, title);
+    const greysonCategory = lookupGreysonCategory(productType, tags, title);
     if (greysonCategory) {
       console.log(`[scraper/categorize/greyson] mapped "${productType}" → "${greysonCategory}"`);
       return greysonCategory;
@@ -45,10 +54,21 @@ export function resolveCategory(
 
   // ASRV: deterministic product_type map (with Sweatshirts title disambiguation)
   if (brand === "asrv" && productType) {
-    const asrvCategory = lookupAsrvCategory(productType, title);
+    const asrvCategory = lookupAsrvCategory(productType, tags, title);
     if (asrvCategory) {
       console.log(`[scraper/categorize/asrv] mapped "${productType}" → "${asrvCategory}"`);
       return asrvCategory;
+    }
+    // Unknown type — fall through to legacy rules for forward-compatibility
+  }
+
+  // TravisMathew: deterministic map + Hoodie tag/title disambiguation
+  // Licensed sports exclusion is handled upstream by isExcludedProductType().
+  if (brand === "travis-mathew" && productType) {
+    const tmCategory = lookupTravisMathewCategory(productType, tags, title);
+    if (tmCategory) {
+      console.log(`[scraper/categorize/travis-mathew] mapped "${productType}" → "${tmCategory}"`);
+      return tmCategory;
     }
     // Unknown type — fall through to legacy rules for forward-compatibility
   }

@@ -403,19 +403,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-sale",
-    // Product types are explicit and self-describing — no titleContains needed where type is unambiguous.
-    // TODO: TravisMathew has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
-    categoryMappings: {
-      jackets:    { productTypes: ["Jacket", "Bomber", "Shacket"] },
-      zips:       { productTypes: ["Quarter Zip", "Half Zip", "Full Zip"] },
-      longsleeve: { productTypes: ["Tee"], titleContains: ["long sleeve", "longsleeve"] },
-      polos:      { productTypes: ["Polo"] },
-      shirts:     { productTypes: ["Tee", "Button-Up"] },
-      hoodies:    { productTypes: ["Hoodie", "Pullover"] },
-      sweaters:   { productTypes: ["Crew", "Sweater", "Cardigan"] },
-      shorts:     { productTypes: ["Boardshort", "Short"] },
-      pants:      { productTypes: ["Pant", "Jogger"] },
-    },
+    categoryMappings: {}, // TravisMathew categorization is owned by lib/brands/travis-mathew/categories.ts
   },
   // Per-brand normalization config: see lib/brands/greyson/
   {
