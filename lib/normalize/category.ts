@@ -4,6 +4,7 @@ import { lookupGreysonCategory, GREYSON_EXCLUDED_PRODUCT_TYPES } from "@/lib/bra
 import { lookupAsrvCategory, ASRV_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/asrv/categories";
 import { lookupTravisMathewCategory, isExcludedLicensedSports, TM_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/travis-mathew/categories";
 import { lookupTaylorStitchCategory, isArchivedProduct, isExcludedTaylorStitchTitle, TS_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/taylor-stitch/categories";
+import { lookupBuckMasonCategory, BM_EXCLUDED_PRODUCT_TYPES, isExcludedBMTag, isExcludedBuckMasonTitle } from "@/lib/brands/buck-mason/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -35,6 +36,9 @@ export function isExcludedProductType(
   }
   if (brand === "taylor-stitch") {
     return isArchivedProduct(tags) || TS_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedTaylorStitchTitle(title);
+  }
+  if (brand === "buck-mason") {
+    return BM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedBMTag(tags) || isExcludedBuckMasonTitle(title);
   }
   return false;
 }
@@ -86,6 +90,18 @@ export function resolveCategory(
       return tsCategory;
     }
     // Unknown type — fall through to legacy rules for forward-compatibility
+  }
+
+  // Buck Mason: style-- tag-driven disambiguation across multi-destination types.
+  // Product_type, tag, and title-keyword exclusions handled upstream by isExcludedProductType().
+  if (brand === "buck-mason") {
+    const bmCategory = lookupBuckMasonCategory(productType, tags, title);
+    if (bmCategory) {
+      console.log(`[scraper/categorize/buck-mason] mapped "${productType}" → "${bmCategory}"`);
+      return bmCategory;
+    }
+    // null → vision fallback (collab items with no clear signal, or unknown future types)
+    return null;
   }
 
   // Normalize curly apostrophes (U+2019 → U+0027) for consistent matching (e.g. BYLT's product types)

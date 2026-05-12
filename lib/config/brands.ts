@@ -106,17 +106,8 @@ export const BRANDS: BrandConfig[] = [
     colorTagPrefix: "color--",
     newArrivalsHandle: "mens-new-arrivals",
     popularHandle: "best-sellers",
-    categoryMappings: {
-      jackets: { productTypes: ["Outerwear", "Jackets"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      longsleeve: { productTypes: ["Shirts", "Tees"], titleContains: ["long sleeve", "longsleeve"] },
-      polos: { productTypes: ["Polos"] },
-      shirts: { productTypes: ["Shirts", "Tees"] },
-      hoodies: { productTypes: ["Sweats", "Sweatshirts"], titleContains: ["hoodie", "pullover"] },
-      sweaters: { productTypes: ["Sweaters", "Sweats", "Sweatshirts"], titleContains: ["crew", "crewneck", "sweater", "cardigan"] },
-      zips: { productTypes: ["Sweaters", "Sweats", "Sweatshirts"], titleContains: ["zip", "quarter-zip", "half zip"] },
-      shorts: { productTypes: ["Shorts", "Sweats"], titleContains: ["short"] },
-      pants: { productTypes: ["Pants", "Sweats", "Sweatpants"], titleContains: ["pant", "jogger", "sweat"] },
-    },
+    // Category dispatch owned by lib/brands/buck-mason/categories.ts
+    categoryMappings: {},
   },
   {
     brandKey: "reigning-champ",
