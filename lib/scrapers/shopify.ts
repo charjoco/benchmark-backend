@@ -453,8 +453,12 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       category = precheck.category as AppCategory;
     } else {
       // Step 3a: exclusion — known non-apparel types skip vision and stub entirely
-      // TODO: cleanup task — products that were previously stub-rowed (visionFailed=true)
-      // but are now in an exclusion list should be deleted from the DB. Not handled here.
+      // TODO: cleanup pattern — when adding any new exclusion rule (per-brand
+      // or licensed-sports), existing products that match the new rule must
+      // be cleaned up separately. The scraper's Step 2 precheck.category
+      // shortcut means already-categorized products bypass exclusion checks
+      // on subsequent scrapes. Run scripts/preview-tm-mlb-cleanup.ts (or
+      // equivalent) after deploying a new exclusion to clear the back catalog.
       if (isExcludedProductType(config.brandKey, product.product_type, product.tags, product.title)) {
         console.log(`[scraper/categorize/${config.brandKey}] excluded productType "${product.product_type}"`);
         skipped++;
