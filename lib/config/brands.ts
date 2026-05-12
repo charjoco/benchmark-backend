@@ -378,16 +378,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-last-call",
     popularHandle: "mens-best-sellers",
-    categoryMappings: {
-      jackets: { productTypes: ["Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      zips: { productTypes: ["Outerwear", "Wovens"], titleContains: ["zip", "quarter-zip", "half-zip"] },
-      longsleeve: { productTypes: ["Wovens"], titleContains: ["long sleeve", "longsleeve", "flannel", "chamois"] },
-      shirts: { productTypes: ["Wovens"], titleContains: ["shirt", "tee", "polo", "henley"] },
-      hoodies: { productTypes: ["Outerwear", "Wovens"], titleContains: ["hoodie", "pullover", "sweatshirt"] },
-      sweaters: { productTypes: ["Outerwear", "Wovens"], titleContains: ["sweater", "crew", "crewneck", "cardigan", "knit"] },
-      shorts: { productTypes: ["Bottoms"], titleContains: ["short"] },
-      pants: { productTypes: ["Bottoms"], titleContains: ["pant", "trouser", "chino", "denim", "jean", "jogger"] },
-    },
+    categoryMappings: {}, // Taylor Stitch categorization is owned by lib/brands/taylor-stitch/categories.ts
   },
   {
     brandKey: "travis-mathew",

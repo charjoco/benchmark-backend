@@ -3,6 +3,7 @@ import type { BrandConfig } from "@/lib/config/brands";
 import { lookupGreysonCategory, GREYSON_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/greyson/categories";
 import { lookupAsrvCategory, ASRV_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/asrv/categories";
 import { lookupTravisMathewCategory, isExcludedLicensedSports, TM_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/travis-mathew/categories";
+import { lookupTaylorStitchCategory, isArchivedProduct, isExcludedTaylorStitchTitle, TS_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/taylor-stitch/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -31,6 +32,9 @@ export function isExcludedProductType(
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
+  }
+  if (brand === "taylor-stitch") {
+    return isArchivedProduct(tags) || TS_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedTaylorStitchTitle(title);
   }
   return false;
 }
@@ -69,6 +73,17 @@ export function resolveCategory(
     if (tmCategory) {
       console.log(`[scraper/categorize/travis-mathew] mapped "${productType}" → "${tmCategory}"`);
       return tmCategory;
+    }
+    // Unknown type — fall through to legacy rules for forward-compatibility
+  }
+
+  // Taylor Stitch: umbrella-type disambiguation (Wovens/Knits/Outerwear/Bottoms).
+  // ARCHIVE, product_type, and title-keyword exclusions handled upstream by isExcludedProductType().
+  if (brand === "taylor-stitch" && productType) {
+    const tsCategory = lookupTaylorStitchCategory(productType, tags, title);
+    if (tsCategory) {
+      console.log(`[scraper/categorize/taylor-stitch] mapped "${productType}" → "${tsCategory}"`);
+      return tsCategory;
     }
     // Unknown type — fall through to legacy rules for forward-compatibility
   }
