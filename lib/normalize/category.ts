@@ -5,6 +5,7 @@ import { lookupAsrvCategory, ASRV_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/as
 import { lookupTravisMathewCategory, isExcludedLicensedSports, TM_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/travis-mathew/categories";
 import { lookupTaylorStitchCategory, isArchivedProduct, isExcludedTaylorStitchTitle, TS_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/taylor-stitch/categories";
 import { lookupBuckMasonCategory, BM_EXCLUDED_PRODUCT_TYPES, isExcludedBMTag, isExcludedBuckMasonTitle } from "@/lib/brands/buck-mason/categories";
+import { lookupToddSnyderCategory, TDS_EXCLUDED_PRODUCT_TYPES, isExcludedTDSLicensedSports, hasExcludedTDSTag } from "@/lib/brands/todd-snyder/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -39,6 +40,9 @@ export function isExcludedProductType(
   }
   if (brand === "buck-mason") {
     return BM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedBMTag(tags) || isExcludedBuckMasonTitle(title);
+  }
+  if (brand === "todd-snyder") {
+    return TDS_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedTDSLicensedSports(tags, title) || hasExcludedTDSTag(tags);
   }
   return false;
 }
@@ -101,6 +105,18 @@ export function resolveCategory(
       return bmCategory;
     }
     // null → vision fallback (collab items with no clear signal, or unknown future types)
+    return null;
+  }
+
+  // Todd Snyder: Style: tag-driven disambiguation. Full tailored line and licensed sports
+  // (NFL/NHL Fanatics, MLB Yankees) excluded upstream by isExcludedProductType().
+  if (brand === "todd-snyder") {
+    const tsCategory = lookupToddSnyderCategory(productType, tags, title);
+    if (tsCategory) {
+      console.log(`[scraper/categorize/todd-snyder] mapped "${productType}" → "${tsCategory}"`);
+      return tsCategory;
+    }
+    // null → vision fallback (unknown future types, or unresolvable TS KNITS items)
     return null;
   }
 
