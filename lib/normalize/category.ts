@@ -22,6 +22,13 @@ const PRIORITY_ORDER: AppCategory[] = [
   "pants",
 ];
 
+// Mack Weldon non-apparel product types — underwear, bundles, undershirts, accessories.
+// Excludes the large volume of underwear packs (3-Pack Boxer Briefs, etc.) and sock bundles
+// that would otherwise pass gender filters and corrupt color data with size-as-color entries.
+const MW_EXCLUDED_PRODUCT_TYPES = new Set([
+  "underwear", "bundles", "undershirts", "accessories", "gift card",
+]);
+
 /** Returns true for products that should be skipped entirely — no rules, no vision, no stub row. */
 export function isExcludedProductType(
   brand: string,
@@ -32,6 +39,7 @@ export function isExcludedProductType(
   const normalized = productType.toLowerCase().trim();
   if (brand === "greyson") return GREYSON_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
+  if (brand === "mack-weldon") return MW_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
   }

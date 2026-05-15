@@ -21,8 +21,10 @@ export interface BrandConfig {
    *  Use for brands like BYLT where all men's products have "Men's-" in the type. */
   requireMensProductType?: boolean;
   colorOptionNames: string[];
-  /** "option" (default): color from Shopify variant option. "title": extract color from product title after last " - ". "tag": extract from a product tag with the given colorTagPrefix */
+  /** "option" (default): color from Shopify variant option. "title": extract color from product title after last separator. "tag": extract from a product tag with the given colorTagPrefix */
   colorSource?: "option" | "title" | "tag";
+  /** When colorSource="title", the separator used to split color from product name. Defaults to " - ". Taylor Stitch uses " in ". */
+  colorTitleSeparator?: string;
   /** When colorSource="tag", the tag prefix to strip (e.g. "color--" → tag "color--navy" → "navy") */
   colorTagPrefix?: string;
   /** Shopify collection handle for new arrivals — scraped first, products force-marked isNew=true */
@@ -366,6 +368,7 @@ export const BRANDS: BrandConfig[] = [
     womensExclusionTags: ["women", "womens", "women's"],
     colorOptionNames: [],
     colorSource: "title",
+    colorTitleSeparator: " in ",
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-last-call",
     popularHandle: "mens-best-sellers",

@@ -15,6 +15,8 @@ interface ShopifyVariant {
   option1: string | null;
   option2: string | null;
   option3: string | null;
+  // Present when a variant has a specific image assigned (used for Handle-option color extraction)
+  featured_image?: { alt: string } | null;
 }
 
 interface ShopifyProduct {
@@ -177,12 +179,17 @@ function getVariantOption(variant: ShopifyVariant, optionIndex: number): string 
   return "";
 }
 
-function extractColorFromTitle(title: string): string {
-  const lastDash = title.lastIndexOf(" - ");
-  if (lastDash === -1) return "Unknown";
-  let color = title.slice(lastDash + 3).trim();
+// Strings that appear after a title separator but are not color names.
+// ASRV EOL products: "FA'22 Core Oversized Tee - XS - Discontinued" → would extract "Discontinued".
+const NON_COLOR_MARKERS = new Set(["discontinued", "coming soon", "sold out"]);
+
+function extractColorFromTitle(title: string, separator = " - "): string {
+  const lastSep = title.lastIndexOf(separator);
+  if (lastSep === -1) return "Unknown";
+  let color = title.slice(lastSep + separator.length).trim();
   color = color.replace(/\s+"[^"]*"$/, "").trim();
-  return color || "Unknown";
+  if (!color || NON_COLOR_MARKERS.has(color.toLowerCase())) return "Unknown";
+  return color;
 }
 
 function groupVariantsByColor(
@@ -192,7 +199,7 @@ function groupVariantsByColor(
   const groups: Record<string, ShopifyVariant[]> = {};
 
   if (config.colorSource === "title") {
-    const color = extractColorFromTitle(product.title);
+    const color = extractColorFromTitle(product.title, config.colorTitleSeparator);
     groups[color] = [...product.variants];
     return groups;
   }
@@ -210,11 +217,19 @@ function groupVariantsByColor(
 
   const colorOptionIndex = getColorOptionIndex(product, config);
 
+  // Rhone (and potentially other brands) encode colorways as a "Handle" option whose values
+  // are URL slugs (e.g. "mens-endure-tee_lichen-green"). The option name is "Handle", not
+  // "Color", so colorOptionIndex is -1. The variant's featured_image.alt contains the clean
+  // color name ("Lichen Green") — read from there instead of trying to parse the slug.
+  const hasHandleOption = product.options.some((o) => o.name.toLowerCase() === "handle");
+
   for (const variant of product.variants) {
     let color: string;
 
     if (colorOptionIndex >= 0) {
       color = getVariantOption(variant, colorOptionIndex) || "Unknown";
+    } else if (hasHandleOption) {
+      color = variant.featured_image?.alt || "Unknown";
     } else {
       const parts = variant.title.split(" / ");
       color = parts.length > 1 ? parts[parts.length - 1].trim() : "Unknown";
@@ -411,10 +426,15 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     ? raw.filter((p) => mensCollectionIds.has(String(p.id)))
     : raw.filter((p) => isMensProduct(p, config));
 
-  // Global non-apparel exclusion — catches accessories that slip through gender filters
-  // (e.g. "Crew Sock" matching sweaters via "Crew" substring in product type).
-  // "sock" is space-padded to avoid false positives on "Hammock" etc.
-  const NON_APPAREL_TITLE_WORDS = [" sock"];
+  // Global non-apparel exclusion — catches accessories and non-apparel that slip through gender filters.
+  // Notes on specific keywords:
+  //   " sock"  — space-padded to avoid false positives on "Hammock", "Hemlock", etc.
+  //   "briefs" — plural only; singular "brief" is a substring of "briefcase" (MW bag false positive)
+  //   "kit"    — excluded: matches "Kite" (TravisMathew "Kite Surfer Short") and "Kitts" (H&B shirt)
+  const NON_APPAREL_TITLE_WORDS = [
+    " sock", "boxer", "briefs", "underwear",
+    "3-pack", "3 pack", "bundle", "store credit", "gift card",
+  ];
   const menProducts = genderFiltered.filter(
     (p) => !NON_APPAREL_TITLE_WORDS.some((w) => p.title.toLowerCase().includes(w))
   );
