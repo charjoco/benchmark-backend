@@ -26,10 +26,12 @@ model Product {
   colorways      String   @default("[]")
   // Additional sellers (Nordstrom, REI) JSON: [{ seller, displayName, url, price, compareAtPrice, onSale }]
   sellers        String   @default("[]")
-  // Comma-separated list of unique color buckets across all colorways — used for filtering
-  colorBuckets   String   @default("")
+  // Comma-separated Title Case ColorBucket values — legacy, removed in Commit 2
+  colorBuckets    String   @default("")
+  // Comma-separated lowercase AppColor values — replaces colorBuckets after mobile transition
+  availableColors String   @default("")
   // Union of all sizes across all colorways (JSON)
-  sizes          String   @default("[]")
+  sizes           String   @default("[]")
   inStock        Boolean   @default(true)
   isNew          Boolean   @default(false)
   firstSeenAt    DateTime  @default(now())
@@ -55,6 +57,24 @@ model Product {
   @@index([onSale])
   @@index([isNew])
   @@index([isHidden])
+}
+
+model UnknownColor {
+  id            Int      @id @default(autoincrement())
+  brandKey      String
+  rawColorName  String
+  // One example product for debugging — set on first insert only, not updated on subsequent scrapes
+  productHandle String
+  firstSeen     DateTime @default(now())
+  lastSeen      DateTime @updatedAt
+  // Incremented on every scrape cycle the color is still unresolved
+  count         Int      @default(1)
+  resolved      Boolean  @default(false)
+  // AppColor value once manually resolved — honored by resolver step 0 before brand-file lookup
+  resolvedTo    String?
+
+  @@unique([brandKey, rawColorName])
+  @@index([resolved])
 }
 
 model ScrapeLog {
