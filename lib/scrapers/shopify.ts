@@ -2,6 +2,8 @@ import axios from "axios";
 import { prisma } from "@/lib/prisma";
 import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
 import { resolveCategory, isExcludedProductType } from "@/lib/normalize/category";
+import { resolveAppColor } from "@/lib/normalize/colors/resolver";
+import type { AppColor } from "@/lib/normalize/colors/canonical";
 import { isWomensProductImage, classifyCategoryViaVision } from "@/lib/normalize/vision";
 import type { BrandConfig } from "@/lib/config/brands";
 import type { AppCategory, UpsertableProduct, Colorway, SizeVariant } from "@/types";
@@ -278,6 +280,32 @@ function mergeSizes(colorways: Colorway[]): SizeVariant[] {
   return Array.from(sizeMap.entries()).map(([size, available]) => ({ size, available }));
 }
 
+function assertColorPipelineIntegrity(
+  colorBuckets: string,
+  availableColors: string,
+): void {
+  // Title Case pipeline must contain no lowercase tokens
+  const titleCaseTokens = colorBuckets.split(",").filter(Boolean);
+  for (const token of titleCaseTokens) {
+    if (token !== token[0]?.toUpperCase() + token.slice(1).toLowerCase() &&
+        token !== token.toUpperCase()) {
+      throw new Error(
+        `Color pipeline contamination: lowercase token "${token}" found in colorBuckets (Title Case field). availableColors="${availableColors}"`
+      );
+    }
+  }
+
+  // Lowercase pipeline must contain no Title Case tokens
+  const lowercaseTokens = availableColors.split(",").filter(Boolean);
+  for (const token of lowercaseTokens) {
+    if (token !== token.toLowerCase()) {
+      throw new Error(
+        `Color pipeline contamination: non-lowercase token "${token}" found in availableColors (lowercase field). colorBuckets="${colorBuckets}"`
+      );
+    }
+  }
+}
+
 async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSale = false): Promise<boolean> {
   const primary = data.colorways[0];
   if (!primary) return false;
@@ -292,9 +320,19 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
   const maxCompare = comparePrices.length > 0 ? Math.max(...comparePrices) : null;
   const allSizes = mergeSizes(data.colorways);
 
-  // Unique color buckets as comma-sep string for filtering
+  // Unique color buckets as comma-sep string for filtering (legacy Title Case pipeline)
   const bucketSet = new Set(data.colorways.map((c) => c.colorBucket));
   const colorBuckets = Array.from(bucketSet).join(",");
+
+  // New lowercase pipeline — resolve all colorways in parallel (step 0 hits DB)
+  const resolvedAppColors = await Promise.all(
+    data.colorways.map((cw) => resolveAppColor(cw.colorName, data.brand, data.handle))
+  );
+  const availableColors = Array.from(
+    new Set(resolvedAppColors.filter((c): c is AppColor => c !== null))
+  ).join(",");
+
+  assertColorPipelineIntegrity(colorBuckets, availableColors);
 
   const existing = await prisma.product.findUnique({
     where: { brand_externalId: { brand: data.brand, externalId: data.externalId } },
@@ -326,13 +364,14 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
     ? (() => { try { return JSON.parse(existing.colorways); } catch { return []; } })()
     : [];
   const existingColorNames = new Set(existingColorways.map((c) => c.colorName));
-  const colorwaysWithTimestamps = data.colorways.map((cw) => {
+  const colorwaysWithTimestamps = data.colorways.map((cw, i) => {
+    const base = { ...cw, appColor: resolvedAppColors[i] };
     if (!existingColorNames.has(cw.colorName)) {
       hasNewColorway = true;
-      return { ...cw, firstSeenAt: now.toISOString() };
+      return { ...base, firstSeenAt: now.toISOString() };
     }
     const prev = existingColorways.find((e) => e.colorName === cw.colorName);
-    return { ...cw, firstSeenAt: prev?.firstSeenAt ?? now.toISOString() };
+    return { ...base, firstSeenAt: prev?.firstSeenAt ?? now.toISOString() };
   });
 
   const isNew = !isRestocking && (forceNew || firstSeenAt > fourteenDaysAgo || hasNewColorway);
@@ -358,6 +397,7 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
       onSale: anyOnSale,
       colorways: colourwaysJson,
       colorBuckets,
+      availableColors,
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew: true,
@@ -376,6 +416,7 @@ async function upsertProduct(data: UpsertableProduct, forceNew = false, forceSal
       onSale: anyOnSale,
       colorways: colourwaysJson,
       colorBuckets,
+      availableColors,
       sizes: JSON.stringify(allSizes),
       inStock: data.inStock,
       isNew,
