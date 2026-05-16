@@ -56,9 +56,27 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
   const pageSize = 48;
 
-  const colorFilter = colors.length > 0
-    ? { OR: colors.map((c) => ({ colorBuckets: { contains: c } })) }
-    : undefined;
+  // Detect pipeline from first color param's casing:
+  //   Title Case ("Navy") → colorBuckets  (legacy — active TestFlight clients)
+  //   lowercase  ("navy") → availableColors (new pipeline)
+  // Mixed casing across params in a single request is a client bug — warn and fall back to legacy.
+  const isLowercaseChar = (c: string) => {
+    const f = c.trim()[0];
+    return f !== undefined && f === f.toLowerCase() && f !== f.toUpperCase();
+  };
+  let colorFilter: { OR: Array<{ colorBuckets: { contains: string } } | { availableColors: { contains: string } }> } | undefined;
+  if (colors.length > 0) {
+    const firstIsLower = isLowercaseChar(colors[0]);
+    const allLower = colors.every(isLowercaseChar);
+    if (firstIsLower && !allLower) {
+      console.warn(`[products/route] Mixed-case color params: ${colors.join(",")} — defaulting to legacy colorBuckets path`);
+    }
+    if (firstIsLower && allLower) {
+      colorFilter = { OR: colors.map((c) => ({ availableColors: { contains: c.trim() } })) };
+    } else {
+      colorFilter = { OR: colors.map((c) => ({ colorBuckets: { contains: c.trim() } })) };
+    }
+  }
 
   const sizeFilter = sizes.length > 0
     ? { OR: sizes.map((s) => ({ sizes: { contains: `"size":"${s}"` } })) }
