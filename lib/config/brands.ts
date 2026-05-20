@@ -33,6 +33,10 @@ export interface BrandConfig {
   saleHandle?: string;
   /** Shopify collection handle for bestsellers — products in this collection are marked isBestseller=true */
   popularHandle?: string;
+  /** Shopify collection handle for licensed sports products — products in this collection are excluded from ingestion.
+   *  Supports a PGA carve-out: products whose handle contains pga/ryder-cup/usopen/etc. are preserved even if
+   *  they appear in the licensed collection. */
+  licensedSportsHandle?: string;
   /** When set, only products whose Shopify ID appears in this collection are processed.
    *  Replaces isMensProduct() for this brand — the collection is the sole gender filter.
    *  Use for brands with no gender tags whose /products.json mixes men's, women's, and youth. */
@@ -408,12 +412,13 @@ export const BRANDS: BrandConfig[] = [
     brandKey: "johnnie-o",
     displayName: "Johnnie-O",
     domain: "johnnie-o.com",
-  
+
     // Sells men's, women's, and boys — filter strictly by Gender:Men tag
     mensInclusionTags: ["Gender:Men"],
     womensExclusionTags: ["Gender:Women"],
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
+    licensedSportsHandle: "game-day",
     categoryMappings: {
       jackets: { titleContains: ["jacket", "coat", "anorak", "windbreaker", "shell"] },
       zips: { titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },

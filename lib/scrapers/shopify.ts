@@ -476,10 +476,61 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     " sock", "boxer", "briefs", "underwear",
     "3-pack", "3 pack", "bundle", "store credit", "gift card",
   ];
-  const menProducts = genderFiltered.filter(
+  const nonApparelFiltered = genderFiltered.filter(
     (p) => !NON_APPAREL_TITLE_WORDS.some((w) => p.title.toLowerCase().includes(w))
   );
-  console.log(`[${config.displayName}] ${menProducts.length} after men's filter`);
+  console.log(`[${config.displayName}] ${nonApparelFiltered.length} after men's filter`);
+
+  // Filter out licensed sports products using two complementary signals:
+  //
+  // PRIMARY: game-day Shopify collection membership (config.licensedSportsHandle).
+  //   Covers ~99% of licensed products. Fetched fresh each scrape so it stays current.
+  //
+  // SUPPLEMENTARY: licensed product-line slugs in the handle, validated against the title.
+  //   Exists because Johnnie-O has a structural gap — three product lines (Stadium Exeter,
+  //   Galvin MLB polos, Eddie college hoodies) are systematically absent from game-day.
+  //   Validated 2026-05-19: catches 40/40 known gap products, 0 false positives against
+  //   783 confirmed originals, 0 PGA collisions.
+  //
+  //   KNOWN FAILURE MODE: Galvin and Eddie are personal-name styles that Johnnie-O uses for
+  //   BOTH licensed and non-licensed products (Lyndonn, Birdie, Stetsons, Motion all have
+  //   non-licensed variants). The title-check discriminator — "team name precedes style name
+  //   in licensed titles" — could incorrectly exclude a future non-licensed product whose
+  //   title leads with a color or adjective (e.g. "Seal Galvin Performance Polo").
+  //   Re-evaluate if: (a) the log line below fires on a confirmed original, or (b) Johnnie-O
+  //   changes their non-licensed naming convention away from "{Style} {Descriptor}" form.
+  const PGA_CARVE_OUT = /pga|wm-phoenix|wastemanagement|waste-management|ryder-cup|rydercup|usopen|perry-golf|perrygolf|-players|_players/i;
+
+  // Supplementary licensed-line detection. Each branch returns [matched: boolean, label: string].
+  function matchesLicensedLine(handle: string, title: string): [boolean, string] {
+    // Exeter: "stadium-exeter" / "stadiumexeter" are compound slugs that inherently signal
+    // team-venue use. "exeter-printed" catches the city-prefixed variant (miami-exeter-printed-...).
+    if (/stadium.?exeter|exeter-printed/i.test(handle)) return [true, "exeter-compound"];
+    // Galvin MLB polo line: title always leads with the MLB team name ("Chicago Cubs Galvin...").
+    // A plain non-licensed "Galvin polo" would start with "Galvin" or a product descriptor.
+    if (/(?<![a-z])galvin(?![a-z])/i.test(handle) && !/^galvin\b/i.test(title.trim())) return [true, "galvin-team-title"];
+    // Eddie college hoodie line: same pattern — team name always leads the title.
+    if (/(?<![a-z])eddie(?![a-z])/i.test(handle) && !/^eddie\b/i.test(title.trim())) return [true, "eddie-team-title"];
+    return [false, ""];
+  }
+
+  let menProducts = nonApparelFiltered;
+  if (config.licensedSportsHandle) {
+    const licensedIds = await fetchCollectionProductIds(config.domain, config.licensedSportsHandle);
+    console.log(`[${config.displayName}] ${licensedIds.size} products in licensed sports collection`);
+    const before = menProducts.length;
+    menProducts = nonApparelFiltered.filter((p) => {
+      if (PGA_CARVE_OUT.test(p.handle)) return true;        // PGA exemption always wins
+      if (licensedIds.has(String(p.id))) return false;       // in game-day collection → exclude
+      const [matched, label] = matchesLicensedLine(p.handle, p.title);
+      if (matched) {
+        console.log(`[${config.displayName}] excluded by licensed-line rule: ${p.handle} (matched: ${label})`);
+        return false;
+      }
+      return true;
+    });
+    console.log(`[${config.displayName}] ${before - menProducts.length} licensed sports products excluded`);
+  }
 
   // Build the set of valid men's product IDs for stale cleanup later
   const validMensExternalIds = new Set(menProducts.map((p) => String(p.id)));
