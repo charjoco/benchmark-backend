@@ -419,17 +419,7 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     licensedSportsHandle: "game-day",
-    categoryMappings: {
-      jackets: { titleContains: ["jacket", "coat", "anorak", "windbreaker", "shell"] },
-      zips: { titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
-      longsleeve: { titleContains: ["long sleeve", "longsleeve"] },
-      polos: { titleContains: ["polo"] },
-      shirts: { titleContains: ["tee", "t-shirt", "shirt", "henley"] },
-      hoodies: { titleContains: ["hoodie", "pullover", "sweatshirt"] },
-      sweaters: { titleContains: ["crew", "crewneck", "sweater", "cardigan", "fleece"] },
-      shorts: { titleContains: ["short"] },
-      pants: { titleContains: ["pant", "jogger", "trouser", "chino"] },
-    },
+    categoryMappings: {}, // Johnnie-O categorization is owned by lib/brands/johnnie-o/categories.ts
   },
 ];
 

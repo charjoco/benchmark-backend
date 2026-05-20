@@ -6,6 +6,7 @@ import { lookupTravisMathewCategory, isExcludedLicensedSports, TM_EXCLUDED_PRODU
 import { lookupTaylorStitchCategory, isArchivedProduct, isExcludedTaylorStitchTitle, TS_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/taylor-stitch/categories";
 import { lookupBuckMasonCategory, BM_EXCLUDED_PRODUCT_TYPES, isExcludedBMTag, isExcludedBuckMasonTitle } from "@/lib/brands/buck-mason/categories";
 import { lookupToddSnyderCategory, TDS_EXCLUDED_PRODUCT_TYPES, isExcludedTDSLicensedSports, hasExcludedTDSTag } from "@/lib/brands/todd-snyder/categories";
+import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTitle } from "@/lib/brands/johnnie-o/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -51,6 +52,9 @@ export function isExcludedProductType(
   }
   if (brand === "todd-snyder") {
     return TDS_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedTDSLicensedSports(tags, title) || hasExcludedTDSTag(tags);
+  }
+  if (brand === "johnnie-o") {
+    return JO_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedJohnnieOTitle(title);
   }
   return false;
 }
@@ -125,6 +129,18 @@ export function resolveCategory(
       return tsCategory;
     }
     // null → vision fallback (unknown future types, or unresolvable TS KNITS items)
+    return null;
+  }
+
+  // Johnnie-O: abbreviated product_type system (MPO, MKO, MSH, etc.) with MKO title dispatch.
+  // Licensed sports (NCAA/NFL/MLB/GOLF CM* etc.) excluded upstream by isExcludedProductType().
+  if (brand === "johnnie-o") {
+    const joCategory = lookupJohnnieOCategory(productType, tags, title);
+    if (joCategory) {
+      console.log(`[scraper/categorize/johnnie-o] mapped "${productType}" → "${joCategory}"`);
+      return joCategory;
+    }
+    // null → vision fallback (unknown future types)
     return null;
   }
 
