@@ -7,6 +7,7 @@ import { lookupTaylorStitchCategory, isArchivedProduct, isExcludedTaylorStitchTi
 import { lookupBuckMasonCategory, BM_EXCLUDED_PRODUCT_TYPES, isExcludedBMTag, isExcludedBuckMasonTitle } from "@/lib/brands/buck-mason/categories";
 import { lookupToddSnyderCategory, TDS_EXCLUDED_PRODUCT_TYPES, isExcludedTDSLicensedSports, hasExcludedTDSTag } from "@/lib/brands/todd-snyder/categories";
 import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTitle } from "@/lib/brands/johnnie-o/categories";
+import { lookupRhoneCategory, isExcludedRhoneProductType } from "@/lib/brands/rhone/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -56,6 +57,7 @@ export function isExcludedProductType(
   if (brand === "johnnie-o") {
     return JO_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedJohnnieOTitle(title);
   }
+  if (brand === "rhone") return isExcludedRhoneProductType(productType, title);
   return false;
 }
 
@@ -139,6 +141,18 @@ export function resolveCategory(
     if (joCategory) {
       console.log(`[scraper/categorize/johnnie-o] mapped "${productType}" → "${joCategory}"`);
       return joCategory;
+    }
+    // null → vision fallback (unknown future types)
+    return null;
+  }
+
+  // Rhone: English product_type names with Tees/Tanks title dispatch and Midlayers title dispatch.
+  // Blazers/Jackets and sleeveless items excluded upstream by isExcludedProductType().
+  if (brand === "rhone") {
+    const rhoneCategory = lookupRhoneCategory(productType, tags, title);
+    if (rhoneCategory) {
+      console.log(`[scraper/categorize/rhone] mapped "${productType}" → "${rhoneCategory}"`);
+      return rhoneCategory;
     }
     // null → vision fallback (unknown future types)
     return null;

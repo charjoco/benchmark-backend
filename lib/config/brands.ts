@@ -175,18 +175,12 @@ export const BRANDS: BrandConfig[] = [
     saleHandle: "sale",
     popularHandle: "mens-best-sellers",
     colorOptionNames: ["Color"],
-    // "Shirts" type = dress commuter shirts (skip); "Midlayers" = hoodies/zips/anoraks
-    categoryMappings: {
-      jackets: { productTypes: ["Jackets", "Outerwear", "Midlayers"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      zips: { productTypes: ["Midlayers", "Sweaters"], titleContains: ["zip", "quarter-zip", "half-zip"] },
-      longsleeve: { productTypes: ["Tees", "Shirts"], titleContains: ["long sleeve", "longsleeve"] },
-      polos: { productTypes: ["Polos"] },
-      shirts: { productTypes: ["Tees"] },
-      hoodies: { productTypes: ["Midlayers"], titleContains: ["hoodie", "pullover", "sweatshirt"] },
-      sweaters: { productTypes: ["Midlayers", "Sweaters"], titleContains: ["crew", "crewneck", "sweater", "cardigan", "cardi"] },
-      shorts: { productTypes: ["Shorts"] },
-      pants: { productTypes: ["Pants"] },
-    },
+    // Categorization owned by lib/brands/rhone/categories.ts.
+    // "Shirts" = Commuter/Brezza/State of Mind woven button-downs → shirts category.
+    // "Tees/Tanks" dispatches by title (sleeveless → exclude, LS → longsleeve, else → shirts).
+    // "Midlayers" dispatches by title (jacket/anorak → jackets, zip → zips, hoodie → hoodies, else → sweaters).
+    // "Blazers/Jackets" excluded per editorial decision 2026-05-21.
+    categoryMappings: {},
   },
   {
     brandKey: "mack-weldon",

@@ -25,6 +25,7 @@ import { GREYSON_COLORS } from "@/lib/brands/greyson/colors";
 import { VUORI_COLORS } from "@/lib/brands/vuori/colors";
 import { TRAVIS_MATHEW_COLORS } from "@/lib/brands/travis-mathew/colors";
 import { JOHNNIE_O_COLORS } from "@/lib/brands/johnnie-o/colors";
+import { RHONE_COLORS } from "@/lib/brands/rhone/colors";
 
 // Static brand color map — add an entry here when a new brand color file is created.
 // Intentionally not dynamic imports: runtime failures from missing files are caught at
@@ -34,6 +35,7 @@ const BRAND_COLOR_MAPS: Partial<Record<string, Record<string, AppColor>>> = {
   "vuori":         VUORI_COLORS,
   "travis-mathew": TRAVIS_MATHEW_COLORS,
   "johnnie-o":     JOHNNIE_O_COLORS,
+  "rhone":         RHONE_COLORS,
 };
 
 // Lowercase + trim + collapse internal whitespace. Applied before all dictionary lookups.
