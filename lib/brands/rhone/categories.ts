@@ -57,6 +57,23 @@ function isSleevelessTeesTanks(title: string): boolean {
   return t.includes("tank") || t.includes("sleeveless") || t.includes("singlet");
 }
 
+// Rhone × NBA licensed collab items share product_types (Shirts, Midlayers) with core
+// apparel — cannot be excluded by product_type alone. All 99 catalog items start with "NBA".
+function isRhoneNBAProduct(title: string): boolean {
+  return /\bnba\b/i.test(title);
+}
+
+// Tailored blazers land in product_types shared with outerwear (Outerwear, Jackets) and
+// cannot be excluded by product_type alone. Consistent with tailored-excluded rule across
+// Buck Mason, Todd Snyder, Johnnie-O. Plural form catches "Blazers" collab names.
+// Check only the product name portion (before " -- ") — Rhone appends colorways to the
+// title as "Product Name -- Colorway", so a naive match would catch "Navy Blazer" colorways
+// on sweatpants, tees, polos, etc.
+function isRhoneTailoredBlazer(title: string): boolean {
+  const productName = title.split(" -- ")[0];
+  return /\bblazers?\b/i.test(productName);
+}
+
 // "Midlayers" spans outerwear (anoraks, shells), zips, hoodies, and crew sweaters.
 // Resolution order mirrors JO MKO dispatch: jackets first, then zips, hoodies, sweaters.
 function resolveMidlayersType(title: string): AppCategory {
@@ -99,6 +116,8 @@ export function isExcludedRhoneProductType(productType: string, title = ""): boo
   const normalized = productType.toLowerCase().trim();
   if (RHONE_EXCLUDED_PRODUCT_TYPES.has(normalized)) return true;
   if (normalized === "tees/tanks" && isSleevelessTeesTanks(title)) return true;
+  if (isRhoneNBAProduct(title)) return true;
+  if (isRhoneTailoredBlazer(title)) return true;
   return false;
 }
 
