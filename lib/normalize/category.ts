@@ -8,6 +8,7 @@ import { lookupBuckMasonCategory, BM_EXCLUDED_PRODUCT_TYPES, isExcludedBMTag, is
 import { lookupToddSnyderCategory, TDS_EXCLUDED_PRODUCT_TYPES, isExcludedTDSLicensedSports, hasExcludedTDSTag } from "@/lib/brands/todd-snyder/categories";
 import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTitle } from "@/lib/brands/johnnie-o/categories";
 import { lookupRhoneCategory, isExcludedRhoneProductType } from "@/lib/brands/rhone/categories";
+import { lookupVuoriCategory, isExcludedVuoriProductType } from "@/lib/brands/vuori/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -58,6 +59,7 @@ export function isExcludedProductType(
     return JO_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedJohnnieOTitle(title);
   }
   if (brand === "rhone") return isExcludedRhoneProductType(productType, title);
+  if (brand === "vuori") return isExcludedVuoriProductType(productType, title);
   return false;
 }
 
@@ -153,6 +155,18 @@ export function resolveCategory(
     if (rhoneCategory) {
       console.log(`[scraper/categorize/rhone] mapped "${productType}" → "${rhoneCategory}"`);
       return rhoneCategory;
+    }
+    // null → vision fallback (unknown future types)
+    return null;
+  }
+
+  // Vuori: English product_type names with Tops title dispatch and Jackets & Hoodies title dispatch.
+  // Tanks, sleeveless items, blazers, and non-apparel excluded upstream by isExcludedProductType().
+  if (brand === "vuori") {
+    const vuoriCategory = lookupVuoriCategory(productType, tags, title);
+    if (vuoriCategory) {
+      console.log(`[scraper/categorize/vuori] mapped "${productType}" → "${vuoriCategory}"`);
+      return vuoriCategory;
     }
     // null → vision fallback (unknown future types)
     return null;

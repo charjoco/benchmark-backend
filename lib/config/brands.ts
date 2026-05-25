@@ -242,17 +242,12 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "new",
     saleHandle: "sale",
     popularHandle: "bestsellers",
-    // Vuori product types: Tops (tees/hoodies/crews/sweaters), Jackets & Hoodies, Shorts, Boardshorts, Pants, Joggers, Sweaters
-    categoryMappings: {
-      jackets: { productTypes: ["Jackets & Hoodies"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      zips: { productTypes: ["Jackets & Hoodies", "Tops"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
-      longsleeve: { productTypes: ["Tops"], titleContains: ["long sleeve", "longsleeve"] },
-      shirts: { productTypes: ["Tops", "Tanks"], titleContains: ["tee", "t-shirt", "polo", "short sleeve", "muscle", "v-neck", "tank", "henley"] },
-      hoodies: { productTypes: ["Jackets & Hoodies", "Tops"], titleContains: ["hoodie", "pullover"] },
-      sweaters: { productTypes: ["Jackets & Hoodies", "Tops", "Sweaters"], titleContains: ["crew", "crewneck", "sweatshirt", "fleece", "sweater", "mock neck"] },
-      shorts: { productTypes: ["Shorts", "Boardshorts"] },
-      pants: { productTypes: ["Pants", "Joggers"] },
-    },
+    // Categorization owned by lib/brands/vuori/categories.ts.
+    // "Tops" dispatches by title (hoodies/zips/polos/longsleeve/shirts); sleeveless excluded upstream.
+    // "Jackets & Hoodies" dispatches by title (jackets/zips/hoodies/sweaters).
+    // "Button Down" dispatches by sleeve (longsleeve/shirts).
+    // "Boardshorts" → shorts per editorial decision 2026-05-21.
+    categoryMappings: {},
   },
   {
     brandKey: "faherty",
