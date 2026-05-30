@@ -62,6 +62,7 @@ Deploying rules fixes **future** products only. Existing rows keep their stored 
 
 - **Dry-run first.** Compute three sets via the scraper's *own* `resolveCategory` / `isExcludedProductType` functions (no reimplementation — zero drift): **EXCLUDE** (now matches an exclusion), **RECATEGORIZE** (new category ≠ stored), **UNCHANGED**. These functions require `product_type` per product, which is not stored in the DB — scripts must fetch live Shopify JSON to call them accurately.
 - **Inspect the category-shift diff for regressions.** *This is the single highest-value check in the whole procedure.* A shift like `jackets → sweaters: 41` or `pants → sweaters: 3` is a red flag that `categories.ts` has a gap — a missing path or a wrong default. Fix the rule, re-run the dry-run, repeat until regressions are zero.
+- **`categoryOverride` guardrail.** Before executing any bulk category UPDATE, filter out rows where `categoryOverride IS NOT NULL`. The precheck (Step 1) will silently ignore your backfill on those rows anyway — the override wins every scrape — but more importantly, a direct DB write that sets `category` on an override row stomps a deliberate admin decision without any warning. The safe pattern: `prisma.product.updateMany({ where: { id: { in: ids }, categoryOverride: null }, data: { category: ... } })`. If an override row genuinely needs recategorizing, clear `categoryOverride` explicitly and consciously, not as a side effect of a bulk operation.
 - Confirm counts with the product owner.
 - Execute with destructive discipline (below).
 
@@ -80,8 +81,9 @@ Note: products that match a new exclusion rule are not auto-deleted by the scrap
 1. **Preview** — exact count + sample rows.
 2. **Confirm** — product owner states expected count (two-step).
 3. **Backup** — JSON to `/tmp` before any write; verify the backup row count matches expected.
-4. **Transaction-wrapped** — all-or-nothing. Use `prisma.product.updateMany` grouped by target category (not individual `update` per row) to stay within transaction timeout limits. Use `Promise.all` for parallel ops when order doesn't matter.
-5. **Post-verify** — targets gone/changed, originals intact, counts reconcile.
+4. **`categoryOverride` check** — for bulk category UPDATEs, add `categoryOverride: null` to the WHERE clause. Rows with overrides have deliberate admin assignments; a backfill that ignores this will silently disagree with what the scraper actually uses on those rows, and restoring from the JSON backup is the only recovery path if an override is stomped.
+5. **Transaction-wrapped** — all-or-nothing. Use `prisma.product.updateMany` grouped by target category (not individual `update` per row) to stay within transaction timeout limits. Use `Promise.all` for parallel ops when order doesn't matter.
+6. **Post-verify** — targets gone/changed, originals intact, counts reconcile.
 
 ---
 
