@@ -7,8 +7,9 @@
 //     isExcludedVuoriProductType(). Items that reach lookupVuoriCategory() need only
 //     the hoodie/zip/polo/LS/SS resolution.
 //
-//   "Jackets & Hoodies" — multi-destination: jackets, zips, hoodies, or crew sweaters.
-//     Resolution order: jackets → zips → hoodies → sweaters (same logic as Rhone Midlayers).
+//   "Jackets & Hoodies" — multi-destination: jackets, zips, hoodies, polos, or pants.
+//     Resolution order: jackets → zips → hoodies → polos → pants → null (vision).
+//     Vests handled upstream by shared /\bvests?\b/i rule in resolveCategory before this runs.
 //
 //   "Button Down" — long-sleeve vs. short-sleeve dispatch only.
 //
@@ -52,9 +53,11 @@ function isVuoriSleeveless(title: string): boolean {
   return /\b(muscle|sleeveless|tank)\b/i.test(title);
 }
 
-// "Jackets & Hoodies" spans outerwear (shells, anoraks), zips, hoodies, and crew sweaters.
-// Resolution order mirrors Rhone Midlayers dispatch: jackets first, then zips, hoodies, sweaters.
-function resolveJacketsHoodies(title: string): AppCategory {
+// "Jackets & Hoodies" spans outerwear (shells, anoraks), zips, hoodies, and edge cases
+// (pollos, pants/snow pants). Vests are handled upstream by the shared /\bvests?\b/i rule
+// in resolveCategory before this function is ever reached.
+// Returns null for anything not deterministically resolvable — falls to vision.
+function resolveJacketsHoodies(title: string): AppCategory | null {
   const t = title.toLowerCase();
   if (
     t.includes("jacket") ||
@@ -67,7 +70,9 @@ function resolveJacketsHoodies(title: string): AppCategory {
   ) return "jackets";
   if (t.includes("zip") || t.includes("quarter-zip") || t.includes("half-zip")) return "zips";
   if (t.includes("hoodie") || t.includes("pullover")) return "hoodies";
-  return "sweaters";
+  if (t.includes("polo")) return "polos";
+  if (t.includes("pant") || t.includes("trouser") || t.includes("jogger")) return "pants";
+  return null;
 }
 
 // Direct product_type → AppCategory for single-destination types.
@@ -103,12 +108,16 @@ export function lookupVuoriCategory(
 
   // "Tops" (and "TOPS") — multi-destination dispatch.
   // Sleeveless items already excluded upstream by isExcludedVuoriProductType().
-  // Resolution order: hoodies → zips → polos → longsleeve → else shirts.
+  // Resolution order: hoodies → zips → polos → longsleeve → sweaters → shirts.
+  // "sweater" / "sweatshirt" / " crew" catches crew sweaters (e.g. "Waffle Crew",
+  // "Cypress Crew", "Berik Cashmere Sweater") that Vuori tags as "Tops" not "Sweaters".
+  // Space-prefix on " crew" avoids matching "Crew Neck Tee" (starts with "crew").
   if (normalized === "tops") {
     if (t.includes("hoodie") || t.includes("pullover")) return "hoodies";
     if (t.includes("zip") || t.includes("quarter-zip") || t.includes("half-zip")) return "zips";
     if (t.includes("polo")) return "polos";
     if (t.includes("long sleeve") || t.includes("longsleeve")) return "longsleeve";
+    if (t.includes("sweater") || t.includes("sweatshirt") || t.includes(" crew")) return "sweaters";
     return "shirts";
   }
 

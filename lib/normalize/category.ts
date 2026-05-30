@@ -70,6 +70,11 @@ export function resolveCategory(
   config: BrandConfig,
   title = ""
 ): AppCategory | null {
+  // Shared vest detection — fires before brand dispatch for all brands.
+  // /\bvests?\b/i matches "vest" / "vests" as whole words, not substrings
+  // ("harvest", "investment" do not match due to the word-boundary anchor).
+  if (/\bvests?\b/i.test(title)) return "vests";
+
   // Greyson: deterministic product_type map runs before legacy keyword rules
   if (brand === "greyson" && productType) {
     const greysonCategory = lookupGreysonCategory(productType, tags, title);

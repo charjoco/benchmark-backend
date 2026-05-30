@@ -5,7 +5,7 @@ import type { AppCategory, VisionResult } from "@/types";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const VALID_CATEGORIES = new Set<AppCategory>([
-  "jackets", "zips", "longsleeve", "polos", "shirts",
+  "jackets", "vests", "zips", "longsleeve", "polos", "shirts",
   "hoodies", "sweaters", "shorts", "pants",
 ]);
 
