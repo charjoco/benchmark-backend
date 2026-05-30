@@ -116,7 +116,7 @@ export function lookupVuoriCategory(
     if (t.includes("hoodie") || t.includes("pullover")) return "hoodies";
     if (t.includes("zip") || t.includes("quarter-zip") || t.includes("half-zip")) return "zips";
     if (t.includes("polo")) return "polos";
-    if (t.includes("long sleeve") || t.includes("longsleeve")) return "longsleeve";
+    if (t.includes("long sleeve") || t.includes("longsleeve") || t.includes("long-sleeve")) return "longsleeve";
     if (t.includes("sweater") || t.includes("sweatshirt") || t.includes(" crew")) return "sweaters";
     return "shirts";
   }
@@ -126,9 +126,13 @@ export function lookupVuoriCategory(
     return resolveJacketsHoodies(title);
   }
 
-  // "Button Down" — LS vs short-sleeve dispatch
+  // "Button Down" — LS vs short-sleeve dispatch.
+  // "long-sleeve" hyphen variant covers future defensive cases.
+  // "plaid" signals flannel/woven LS fabric (verified: zero SS plaids in Button Down type).
   if (normalized === "button down") {
-    return (t.includes("long sleeve") || t.includes("longsleeve")) ? "longsleeve" : "shirts";
+    if (t.includes("long sleeve") || t.includes("longsleeve") || t.includes("long-sleeve")) return "longsleeve";
+    if (t.includes("plaid")) return "longsleeve";
+    return "shirts";
   }
 
   return MAP[normalized] ?? null;
