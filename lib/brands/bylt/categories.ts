@@ -13,7 +13,7 @@
 //   Men's-Bottoms-Joggers    → pants
 //
 // Multi-destination types requiring title dispatch:
-//   Men's-Tops-Button-Downs — LS ("long sleeve" / "long-sleeve" in title) → longsleeve; else → shirts.
+//   Men's-Tops-Button-Downs — LS ("long sleeve" / "long-sleeve") or overshirt/flannel in title → longsleeve; else → shirts.
 //   Men's-Tops-Outerwear    — spans jackets, zips, hoodies, sweaters, overshirts.
 //     Resolution order: jackets → zips → hoodies → sweaters/knits → overshirts/flannels → null (vision).
 //     "Nylon" signals performance shell (Tech Nylon Fairway Pullover → jackets, not hoodies).
@@ -113,10 +113,18 @@ export function lookupByltCategory(
   // Single-destination types
   if (normalized in MAP) return MAP[normalized];
 
-  // "Men's-Tops-Button-Downs" — LS vs short-sleeve dispatch.
+  // "Men's-Tops-Button-Downs" — LS/overshirt vs short-sleeve dispatch.
+  // BYLT places some overshirts and flannels in Button-Downs rather than Outerwear.
+  // Short-sleeve overshirts ("Elite+ Short Sleeve Overshirt") must not hit the longsleeve path.
   if (normalized === "men's-tops-button-downs") {
     const t = title.toLowerCase();
-    if (t.includes("long sleeve") || t.includes("longsleeve") || t.includes("long-sleeve")) return "longsleeve";
+    const isShortSleeve = t.includes("short sleeve") || t.includes("short-sleeve");
+    if (
+      !isShortSleeve && (
+        t.includes("long sleeve") || t.includes("longsleeve") || t.includes("long-sleeve") ||
+        t.includes("overshirt")   || t.includes("flannel")
+      )
+    ) return "longsleeve";
     return "shirts";
   }
 
