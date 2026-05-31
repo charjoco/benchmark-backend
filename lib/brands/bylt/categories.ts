@@ -6,18 +6,20 @@
 //
 // Single-destination types (MAP):
 //   Men's-Tops-Short-Sleeves → shirts
-//   Men's-Top-Long-Sleeves   → longsleeve  (note: "Top" singular, BYLT naming quirk)
 //   Men's-Tops-Polos         → polos
 //   Men's-Bottoms-Shorts     → shorts
 //   Men's-Bottoms-Pants      → pants
 //   Men's-Bottoms-Joggers    → pants
 //
 // Multi-destination types requiring title dispatch:
-//   Men's-Tops-Button-Downs — LS ("long sleeve" / "long-sleeve") or overshirt/flannel in title → longsleeve; else → shirts.
-//   Men's-Tops-Outerwear    — spans jackets, zips, hoodies, sweaters, overshirts.
-//     Resolution order: jackets → zips → hoodies → sweaters/knits → overshirts/flannels → null (vision).
+//   Men's-Top-Long-Sleeves  — hoodie → hoodies; overshirt/shacket → jackets; else → longsleeve.
+//     "Top" singular is a BYLT naming inconsistency (vs "Tops" for all other types).
+//   Men's-Tops-Button-Downs — overshirt/shacket → jackets; LS or flannel → longsleeve; else → shirts.
+//   Men's-Tops-Outerwear    — spans jackets, zips, hoodies, sweaters, overshirts/flannels.
+//     Resolution order: jackets → zips → hoodies → sweaters/knits → overshirts/shackets → flannels → null (vision).
 //     "Nylon" signals performance shell (Tech Nylon Fairway Pullover → jackets, not hoodies).
 //     "Padded" signals insulated outerwear → jackets.
+//     Overshirts/shackets → jackets (worn open as a layer); flannels/ribbed → longsleeve (shirt layer).
 //
 // Exclusions:
 //   BYLT_EXCLUDED_PRODUCT_TYPES: underwear, boardshorts, tanks.
@@ -70,11 +72,11 @@ function resolveByltOuterwear(title: string): AppCategory | null {
     t.includes("cardigan")  || t.includes("knit")   || t.includes("pullover")
   ) return "sweaters";
 
-  // Overshirts / flannels / shackets — shirt-layer pieces worn as outerwear.
-  if (
-    t.includes("flannel")   || t.includes("overshirt") || t.includes("shacket") ||
-    t.includes("ribbed")
-  ) return "longsleeve";
+  // Overshirts / shackets — worn open as a jacket layer → jackets
+  if (t.includes("overshirt") || t.includes("shacket")) return "jackets";
+
+  // Flannels / ribbed shirts — shirt-layer pieces → longsleeve
+  if (t.includes("flannel") || t.includes("ribbed")) return "longsleeve";
 
   return null;
 }
@@ -83,7 +85,6 @@ function resolveByltOuterwear(title: string): AppCategory | null {
 // All keys are the normalized (lowercase, straight-apostrophe) form.
 const MAP: Record<string, AppCategory> = {
   "men's-tops-short-sleeves": "shirts",
-  "men's-top-long-sleeves":   "longsleeve",  // "Top" singular — BYLT naming inconsistency
   "men's-tops-polos":         "polos",
   "men's-bottoms-shorts":     "shorts",
   "men's-bottoms-pants":      "pants",
@@ -113,16 +114,28 @@ export function lookupByltCategory(
   // Single-destination types
   if (normalized in MAP) return MAP[normalized];
 
-  // "Men's-Tops-Button-Downs" — LS/overshirt vs short-sleeve dispatch.
+  // "Men's-Top-Long-Sleeves" — title dispatch.
+  // Most products are standard LS shirts → longsleeve default.
+  // BYLT misclassifies some hoodies and overshirts under this type.
+  if (normalized === "men's-top-long-sleeves") {
+    const t = title.toLowerCase();
+    if (t.includes("hoodie")) return "hoodies";
+    if (t.includes("overshirt") || t.includes("shacket")) return "jackets";
+    return "longsleeve";
+  }
+
+  // "Men's-Tops-Button-Downs" — overshirt/shacket vs LS vs short-sleeve dispatch.
   // BYLT places some overshirts and flannels in Button-Downs rather than Outerwear.
-  // Short-sleeve overshirts ("Elite+ Short Sleeve Overshirt") must not hit the longsleeve path.
   if (normalized === "men's-tops-button-downs") {
     const t = title.toLowerCase();
+    // Overshirts/shackets → jackets regardless of sleeve length (same rule as Outerwear)
+    if (t.includes("overshirt") || t.includes("shacket")) return "jackets";
+    // Flannels and explicit LS signals → longsleeve (guard short-sleeve flannels if any)
     const isShortSleeve = t.includes("short sleeve") || t.includes("short-sleeve");
     if (
       !isShortSleeve && (
         t.includes("long sleeve") || t.includes("longsleeve") || t.includes("long-sleeve") ||
-        t.includes("overshirt")   || t.includes("flannel")
+        t.includes("flannel")
       )
     ) return "longsleeve";
     return "shirts";
