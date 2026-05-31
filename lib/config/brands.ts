@@ -65,18 +65,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "mens-new-releases",
     saleHandle: "mens-last-call",
     popularHandle: "best-sellers",
-    categoryMappings: {
-      // productTypes match BYLT's type strings; type check uses .includes() so "Men's-Tops-Outerwear".includes("Outerwear") works
-      jackets: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      zips: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["zip", "quarter-zip", "half-zip", "full zip"] },
-      longsleeve: { productTypes: ["Men's-Top-Long-Sleeves", "Men's-Tops-Long-Sleeves", "Mens-Tops-Long-Sleeves"] },
-      polos: { productTypes: ["Men's-Tops-Polos", "Mens-Tops-Polos"] },
-      shirts: { productTypes: ["Men's-Tops-Short-Sleeves", "Mens-Tops-Short-Sleeves", "Men's-Tops-Tanks"] },
-      hoodies: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["hoodie", "pullover", "sweatshirt"] },
-      sweaters: { productTypes: ["Men's-Tops-Outerwear", "Mens-Tops-Outerwear"], titleContains: ["crew", "crewneck", "sweater", "cardigan"] },
-      shorts: { productTypes: ["Men's-Bottoms-Shorts", "Mens-Bottoms-Shorts"] },
-      pants: { productTypes: ["Men's-Bottoms-Pants", "Mens-Bottoms-Pants", "Men's-Bottoms-Joggers", "Mens-Bottoms-Joggers"] },
-    },
+    categoryMappings: {}, // Categorization owned by lib/brands/bylt/categories.ts
   },
   {
     brandKey: "asrv",

@@ -9,6 +9,7 @@ import { lookupToddSnyderCategory, TDS_EXCLUDED_PRODUCT_TYPES, isExcludedTDSLice
 import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTitle } from "@/lib/brands/johnnie-o/categories";
 import { lookupRhoneCategory, isExcludedRhoneProductType } from "@/lib/brands/rhone/categories";
 import { lookupVuoriCategory, isExcludedVuoriProductType } from "@/lib/brands/vuori/categories";
+import { lookupByltCategory, isExcludedByltProductType } from "@/lib/brands/bylt/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -60,6 +61,7 @@ export function isExcludedProductType(
   }
   if (brand === "rhone") return isExcludedRhoneProductType(productType, title);
   if (brand === "vuori") return isExcludedVuoriProductType(productType, title);
+  if (brand === "bylt") return isExcludedByltProductType(productType, title);
   return false;
 }
 
@@ -172,6 +174,18 @@ export function resolveCategory(
     if (vuoriCategory) {
       console.log(`[scraper/categorize/vuori] mapped "${productType}" → "${vuoriCategory}"`);
       return vuoriCategory;
+    }
+    // null → vision fallback (unknown future types)
+    return null;
+  }
+
+  // BYLT: hierarchical "Men's-*" product_type system with U+2019 apostrophes.
+  // Exclusions (underwear, boardshorts, tanks, blazers, bundles) handled upstream.
+  if (brand === "bylt") {
+    const byltCategory = lookupByltCategory(productType, tags, title);
+    if (byltCategory) {
+      console.log(`[scraper/categorize/bylt] mapped "${productType}" → "${byltCategory}"`);
+      return byltCategory;
     }
     // null → vision fallback (unknown future types)
     return null;
