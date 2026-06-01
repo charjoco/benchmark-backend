@@ -10,6 +10,7 @@ import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTi
 import { lookupRhoneCategory, isExcludedRhoneProductType } from "@/lib/brands/rhone/categories";
 import { lookupVuoriCategory, isExcludedVuoriProductType } from "@/lib/brands/vuori/categories";
 import { lookupByltCategory, isExcludedByltProductType } from "@/lib/brands/bylt/categories";
+import { lookupTenThousandCategory, isExcludedTenThousandProductType } from "@/lib/brands/ten-thousand/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -62,6 +63,7 @@ export function isExcludedProductType(
   if (brand === "rhone") return isExcludedRhoneProductType(productType, title);
   if (brand === "vuori") return isExcludedVuoriProductType(productType, title);
   if (brand === "bylt") return isExcludedByltProductType(productType, title);
+  if (brand === "ten-thousand") return isExcludedTenThousandProductType(productType, title);
   return false;
 }
 
@@ -176,6 +178,17 @@ export function resolveCategory(
       return vuoriCategory;
     }
     // null → vision fallback (unknown future types)
+    return null;
+  }
+
+  // Ten Thousand: granular per-product-line types; title dispatch for multi-destination types.
+  // Exclusions (compression, non-apparel, underwear, tanks) handled upstream.
+  if (brand === "ten-thousand") {
+    const ttCategory = lookupTenThousandCategory(productType, title);
+    if (ttCategory) {
+      console.log(`[scraper/categorize/ten-thousand] mapped "${productType}" → "${ttCategory}"`);
+      return ttCategory;
+    }
     return null;
   }
 

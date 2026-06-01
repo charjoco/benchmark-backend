@@ -205,18 +205,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "new-arrivals",
     saleHandle: "surplus-sale",
     popularHandle: "best-sellers",
-    // product_type uses full names like "Interval Shirt", "Tactical Short" — keywords match via .includes()
-    // TODO: Ten Thousand has a dedicated Vest product type — candidate for per-brand mapping file (see lib/brands/greyson/ pattern)
-    categoryMappings: {
-      jackets: { productTypes: ["jacket", "coat", "shell", "anorak", "windbreaker"] },
-      longsleeve: { productTypes: ["long sleeve"] },
-      shirts: { productTypes: ["shirt", "tee"] },
-      hoodies: { productTypes: ["hoodie"] },
-      sweaters: { productTypes: ["crew"] },
-      zips: { productTypes: ["zip"] },
-      shorts: { productTypes: ["short"] },
-      pants: { productTypes: ["pant", "jogger"] },
-    },
+    categoryMappings: {}, // Categorization owned by lib/brands/ten-thousand/categories.ts
   },
   {
     brandKey: "vuori",
