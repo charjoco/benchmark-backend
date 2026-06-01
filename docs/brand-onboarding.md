@@ -48,6 +48,8 @@ Surface anything ambiguous as numbered questions before building.
 - Wire into `lib/normalize/category.ts`: add the import, an `isExcludedProductType` branch, and a `resolveCategory` branch.
 - Add the import for the brand color file at the top of `lib/normalize/colors/resolver.ts`, and add the brand key + map entry to the `BRAND_COLOR_MAPS` object in that file.
 - In `lib/config/brands.ts`, set `categoryMappings: {}, // Categorization owned by lib/brands/<brand>/categories.ts` for the brand entry.
+- **Dispatch-vs-spec table (required output of this step).** For every `product_type` the brand uses, produce a three-column table: `product_type | agreed Step 2 decision | actual code behavior`. "Actual code behavior" means tracing the dispatch path in the code you just wrote — not restating the intent. Deviations are caught here at build time, not in three verification rounds after the backfill. Do not declare the build step done until this table shows no discrepancies.
+- **Color-resolution proof (required output of this step).** For every high-count color name in the brand's Shopify data, show the resolution path: brand dict hit, common.ts hit, or canonical keyword match. Asserting in a comment that a name "auto-resolves" is not a proof — trace the actual path through `stripModifiers` → `common.ts` → canonical keywords. Flag any name that fails all paths as needing an explicit brand dict entry.
 
 ### 4. Pre-commit review
 Read the **actual file content** (or grep specific entries) — not a summary. Several gaps this project shipped were invisible in summaries and only caught by the dry-run regression check in Step 6. The dry-run is the stronger safety net; file review is the backup.
@@ -97,6 +99,8 @@ Note: products that match a new exclusion rule are not auto-deleted by the scrap
 
 **Don't infer sleeve length or color from product names.** Hold the ambiguous item and verify by pulling a product image. Every time this project guessed from the name, it was wrong (Seaview, Bishop Long-Sleeve Button-Down).
 
+**Don't trust comments that assert a color auto-resolves — trace the actual path.** The resolver has four steps: (1) brand dict exact match, (2) `common.ts` exact match, (3) canonical keyword scan with word-boundary regex, (4) modifier stripping then re-lookup. A comment that says "taupe → tan via common.ts" is correct for the name "Taupe" but silently wrong for "Dark-Taupe": the modifier stripper splits on `\s+` whitespace only, so "Dark-Taupe" is a single token, "taupe" is never isolated, and `common.ts` is never reached. Any hyphenated color name whose base word is `common.ts`-only (taupe, sage, mauve, bone, driftwood) and is not in `CANONICAL_KEYWORDS` will silently fail resolution. The only fix is an explicit brand dict entry. Verify by checking each name against `stripModifiers` logic, not by reading comments.
+
 **The webhook silently drops pushes.** Verify Railway is running the new commit before declaring a deploy done. The empty-trigger-commit workaround is reliable.
 
 **Credentials: never paste them in chat; when rotating, update every environment** — local `.env` AND Railway — not just one. A stale Railway `DATABASE_URL` caused a multi-hour silent scraper outage with no alerting.
@@ -109,3 +113,6 @@ Note: products that match a new exclusion rule are not auto-deleted by the scrap
 
 ## Known gap: observability
 There are currently no alerts for scraper silence, commits not deploying, credential drift, or OTA delivery failure. Until that layer exists, every verification step above is manual. Treat it as a standing risk — it is the reason silent failures went undetected for hours in this project.
+
+## Known gap: hyphen tokenization in color modifier stripping
+`stripModifiers` in `lib/normalize/colors/modifiers.ts` splits on `\s+` (whitespace only). A hyphenated color name like `"Dark-Taupe"` or `"Oat-Bone"` is treated as a single token — no qualifier is ever stripped, and the base word never reaches `common.ts`. This affects any brand that uses hyphenated color names where the base word is in `common.ts` but not in `CANONICAL_KEYWORDS`. The impact is silent: the name doesn't error, it just falls through all four resolution steps to `UnknownColor`. The fix is always an explicit entry in the brand's `colors.ts`. When onboarding a brand that uses hyphenated names, audit every hyphenated color against `CANONICAL_KEYWORDS` — do not assume common.ts words will auto-resolve through modifer stripping.
