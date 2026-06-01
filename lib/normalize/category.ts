@@ -11,6 +11,7 @@ import { lookupRhoneCategory, isExcludedRhoneProductType } from "@/lib/brands/rh
 import { lookupVuoriCategory, isExcludedVuoriProductType } from "@/lib/brands/vuori/categories";
 import { lookupByltCategory, isExcludedByltProductType } from "@/lib/brands/bylt/categories";
 import { lookupTenThousandCategory, isExcludedTenThousandProductType } from "@/lib/brands/ten-thousand/categories";
+import { lookupHBCategory, isExcludedHBProductType } from "@/lib/brands/holderness-bourne/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -64,6 +65,7 @@ export function isExcludedProductType(
   if (brand === "vuori") return isExcludedVuoriProductType(productType, title);
   if (brand === "bylt") return isExcludedByltProductType(productType, title);
   if (brand === "ten-thousand") return isExcludedTenThousandProductType(productType, title);
+  if (brand === "holderness-bourne") return isExcludedHBProductType(productType, title);
   return false;
 }
 
@@ -188,6 +190,18 @@ export function resolveCategory(
     if (ttCategory) {
       console.log(`[scraper/categorize/ten-thousand] mapped "${productType}" → "${ttCategory}"`);
       return ttCategory;
+    }
+    return null;
+  }
+
+  // Holderness & Bourne: English product_type names ("Mens Shirts Polos", "Mens Layering Pullovers", etc.)
+  // with title dispatch for multi-destination types (Layering Pullovers, Layering Sweaters, Bottoms Shorts).
+  // Exclusions (hats, bags, belts, Other, Boys prefix, U.S. Open titles) handled upstream.
+  if (brand === "holderness-bourne") {
+    const hbCategory = lookupHBCategory(productType, title);
+    if (hbCategory) {
+      console.log(`[scraper/categorize/holderness-bourne] mapped "${productType}" → "${hbCategory}"`);
+      return hbCategory;
     }
     return null;
   }

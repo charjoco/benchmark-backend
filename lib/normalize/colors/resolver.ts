@@ -8,6 +8,7 @@
 //   Step 1: Brand exact-match dictionary (lib/brands/{brand}/colors.ts)
 //   Step 2: Common exact-match dictionary (lib/normalize/colors/common.ts)
 //   Step 3: Slash notation decomposition (two-tone colorways)
+//   Step 3b: Ampersand " & " decomposition (H&B two-tone colorways)
 //   Step 4: Strip modifiers → common dictionary
 //   Step 5: Strip modifiers → canonical keyword scan
 //   Step 6: Canonical keyword scan without stripping
@@ -28,24 +29,37 @@ import { JOHNNIE_O_COLORS } from "@/lib/brands/johnnie-o/colors";
 import { RHONE_COLORS } from "@/lib/brands/rhone/colors";
 import { BYLT_COLORS } from "@/lib/brands/bylt/colors";
 import { TEN_THOUSAND_COLORS } from "@/lib/brands/ten-thousand/colors";
-
-// Static brand color map — add an entry here when a new brand color file is created.
-// Intentionally not dynamic imports: runtime failures from missing files are caught at
-// build time rather than silently returning null during a scrape.
-const BRAND_COLOR_MAPS: Partial<Record<string, Record<string, AppColor>>> = {
-  "greyson":       GREYSON_COLORS,
-  "vuori":         VUORI_COLORS,
-  "travis-mathew": TRAVIS_MATHEW_COLORS,
-  "johnnie-o":     JOHNNIE_O_COLORS,
-  "rhone":         RHONE_COLORS,
-  "bylt":          BYLT_COLORS,
-  "ten-thousand":  TEN_THOUSAND_COLORS,
-};
+import { HB_COLORS } from "@/lib/brands/holderness-bourne/colors";
 
 // Lowercase + trim + collapse internal whitespace. Applied before all dictionary lookups.
 function normalize(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, " ");
 }
+
+// Normalize all keys in a brand color dict to match the resolver's normalize() output.
+// Brand files may use mixed-case or Title-Case keys (e.g. BYLT uses "Vapor", "Light-Mauve").
+// Without this, lookups always fail because the resolver looks up with a lowercased norm.
+// A no-op for already-lowercase dicts — safe to apply universally.
+function normalizeKeys(dict: Record<string, AppColor>): Record<string, AppColor> {
+  const out: Record<string, AppColor> = {};
+  for (const [k, v] of Object.entries(dict)) out[normalize(k)] = v;
+  return out;
+}
+
+// Static brand color map — add an entry here when a new brand color file is created.
+// Keys are normalized at build time so brand files can use any casing without breaking lookups.
+// Intentionally not dynamic imports: runtime failures from missing files are caught at
+// build time rather than silently returning null during a scrape.
+const BRAND_COLOR_MAPS: Partial<Record<string, Record<string, AppColor>>> = {
+  "greyson":           normalizeKeys(GREYSON_COLORS),
+  "vuori":             normalizeKeys(VUORI_COLORS),
+  "travis-mathew":     normalizeKeys(TRAVIS_MATHEW_COLORS),
+  "johnnie-o":         normalizeKeys(JOHNNIE_O_COLORS),
+  "rhone":             normalizeKeys(RHONE_COLORS),
+  "bylt":              normalizeKeys(BYLT_COLORS),
+  "ten-thousand":      normalizeKeys(TEN_THOUSAND_COLORS),
+  "holderness-bourne": normalizeKeys(HB_COLORS),
+};
 
 function isValidAppColor(value: string): value is AppColor {
   return (ALL_APP_COLORS as readonly string[]).includes(value);
@@ -210,6 +224,33 @@ export async function resolveAppColor(
       }
       // Neither resolved — fall through to step 4 with the original string.
       // This handles the case where "/" is part of a single color name (rare).
+    }
+  }
+
+  // ── Step 3b: Ampersand two-tone decomposition ─────────────────────────────
+  // H&B uses " & " as a two-tone separator ("Harbor & Maidstone Blue").
+  // Only fires when no "/" was present (else-if). Same resolution logic as Step 3.
+  // Step 1 ran first, so a brand dict can still claim the full "&" string as one color.
+  else if (trimmed.includes(" & ")) {
+    const parts = trimmed.split(" & ").map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 2) {
+      const [left, right] = await Promise.all([
+        resolveComponent(parts[0], brandKey),
+        resolveComponent(parts[1], brandKey),
+      ]);
+
+      if (left && right) {
+        return left === right ? left : "multi";
+      }
+      if (left && !right) {
+        await logUnknown(brandKey, parts[1], productHandle);
+        return left;
+      }
+      if (!left && right) {
+        await logUnknown(brandKey, parts[0], productHandle);
+        return "multi";
+      }
+      // Neither resolved — fall through to step 4 with the original string.
     }
   }
 

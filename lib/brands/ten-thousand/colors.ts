@@ -1,18 +1,19 @@
 // Ten Thousand brand-specific color name → AppColor mapping.
 //
 // Resolution order context: this runs at step 1 (before common.ts and keyword scan).
+// Keys are lowercase normalized (matching resolver's normalize() output).
 // Only names that cannot be resolved by common.ts or the canonical keyword scan are included.
 //
 // Ten Thousand is a tactical/military-inspired performance brand. Many names are:
-//   - Military-derived single words: Iron, Rover, Ridgeline, Fir, Basalt
-//   - Tactical/outdoor terms: OD Green, Flat Dark Earth, Sulphur Spring
-//   - Camo patterns: Black Camo, Digi Camo, Serpentine Camo → multi
-//   - Graphic/motto prints: Iron Flag, Abstract Drift, BIG X, MANTRA → multi
-//   - SKU rename variants: "Iron (Old SKU)", "Iron (New SKU)" → same as Iron
+//   - Military-derived single words: iron, rover, ridgeline, fir, basalt
+//   - Tactical/outdoor terms: od green, flat dark earth, sulphur spring
+//   - Camo patterns: black camo, digi camo, serpentine camo → multi
+//   - Graphic/motto prints: iron flag, abstract drift, big x, mantra → multi
+//   - SKU rename variants: "iron (old sku)", "iron (new sku)" → same as iron
 //
 // Notable auto-resolve overrides:
-//   "OD Green"   → olive  (auto would return "green" via "Green" keyword; OD = olive drab)
-//   "Black Camo" → multi  (auto would return "black" via "Black" token; camo is a print)
+//   "od green"   → olive  (auto would return "green" via "Green" keyword; OD = olive drab)
+//   "black camo" → multi  (auto would return "black" via "Black" token; camo is a print)
 //
 // Sourcing: all solid-color entries verified by product image where available.
 //   Rover:     confirmed warm khaki/tan — 5-Pocket Pant (2026-06-01) ✓
@@ -26,70 +27,69 @@ import type { AppColor } from "@/lib/normalize/colors/canonical";
 export const TEN_THOUSAND_COLORS: Record<string, AppColor> = {
 
   // ── GREY ──────────────────────────────────────────────────────────────────
-  "Iron":               "grey",   // dark charcoal iron grey ✓
-  "Iron (Old SKU)":     "grey",   // SKU rename of Iron
-  "Iron (New SKU)":     "grey",   // SKU rename of Iron
-  "Iron Ore":           "grey",   // iron-family naming; dark grey ore ✓
-  "Basalt":             "grey",   // dark volcanic grey rock ✓
-  "Granite":            "grey",   // dark speckled grey stone ✓
-  "Fog":                "grey",   // light mist/overcast grey ✓
-  "Carbon":             "grey",   // carbon material = dark charcoal grey ✓
-  "Stone Heather":      "grey",   // "stone" + "heather" both MODIFIERS → strips to empty → fails
+  "iron":               "grey",   // dark charcoal iron grey ✓
+  "iron (old sku)":     "grey",   // SKU rename of Iron
+  "iron (new sku)":     "grey",   // SKU rename of Iron
+  "iron ore":           "grey",   // iron-family naming; dark grey ore ✓
+  "basalt":             "grey",   // dark volcanic grey rock ✓
+  "granite":            "grey",   // dark speckled grey stone ✓
+  "fog":                "grey",   // light mist/overcast grey ✓
+  "carbon":             "grey",   // carbon material = dark charcoal grey ✓
+  "stone heather":      "grey",   // "stone" + "heather" both MODIFIERS → strips to empty → fails
 
   // ── BLACK ─────────────────────────────────────────────────────────────────
-  "Midnight (Old SKU)": "black",  // Midnight → black (common.ts); parenthetical suffix breaks lookup
-  "Inkwell":            "black",  // deep ink black ✓
+  "midnight (old sku)": "black",  // Midnight → black (common.ts); parenthetical suffix breaks lookup
+  "inkwell":            "black",  // deep ink black ✓
 
   // ── WHITE ─────────────────────────────────────────────────────────────────
-  "Salt":               "white",  // crystalline white ✓
-  "Whiteout":           "white",  // complete white ✓
-  "Halo":               "white",  // luminous white ring ✓
-  "Vapor":              "white",  // vapor/mist = near-white ✓
+  "salt":               "white",  // crystalline white ✓
+  "whiteout":           "white",  // complete white ✓
+  "halo":               "white",  // luminous white ring ✓
+  "vapor":              "white",  // vapor/mist = near-white ✓
 
   // ── TAN ───────────────────────────────────────────────────────────────────
-  "Rover":              "tan",    // confirmed: warm khaki/tan 5-Pocket Pant ✓
-  "Burlap":             "tan",    // coarse natural fiber = warm tan ✓
-  "Clay":               "tan",    // fired clay = warm earth tan ✓
-  "Safari":             "tan",    // khaki safari tan ✓
-  "Flat Dark Earth":    "tan",    // military FDE = coyote/flat tan ✓
+  "rover":              "tan",    // confirmed: warm khaki/tan 5-Pocket Pant ✓
+  "burlap":             "tan",    // coarse natural fiber = warm tan ✓
+  "clay":               "tan",    // fired clay = warm earth tan ✓
+  "safari":             "tan",    // khaki safari tan ✓
+  "flat dark earth":    "tan",    // military FDE = coyote/flat tan ✓
 
   // ── BEIGE ─────────────────────────────────────────────────────────────────
-  "Resin":              "beige",  // confirmed: very light warm cream/khaki Interval Pant ✓
+  "resin":              "beige",  // confirmed: very light warm cream/khaki Interval Pant ✓
 
   // ── OLIVE ─────────────────────────────────────────────────────────────────
-  "OD Green":           "olive",  // OD = olive drab; "Green" keyword auto would → green (wrong)
-  "Ridgeline":          "olive",  // confirmed: warm olive-green Tactical Shirt ✓
-  "Sulphur Spring":     "olive",  // sulphur yellow-green = military olive tone ✓
+  "od green":           "olive",  // OD = olive drab; "Green" keyword auto would → green (wrong)
+  "ridgeline":          "olive",  // confirmed: warm olive-green Tactical Shirt ✓
+  "sulphur spring":     "olive",  // sulphur yellow-green = military olive tone ✓
 
   // ── GREEN ─────────────────────────────────────────────────────────────────
-  "Fir":                "green",  // fir = dark evergreen tree ✓
-  "Leaf":               "green",  // leaf green ✓
-  "Highland":           "green",  // highland terrain = green ✓
+  "fir":                "green",  // fir = dark evergreen tree ✓
+  "leaf":               "green",  // leaf green ✓
+  "highland":           "green",  // highland terrain = green ✓
 
   // ── BLUE ──────────────────────────────────────────────────────────────────
-  "Bluefin":            "blue",   // TT brand name; blue-teal colorway ✓
-  "Zodiac":             "blue",   // confirmed: muted steel/slate blue 5-Pocket Pant ✓
-  "Brook":              "blue",   // stream/water = blue-family; name inference (no image) ✓
+  "bluefin":            "blue",   // TT brand name; blue-teal colorway ✓
+  "zodiac":             "blue",   // confirmed: muted steel/slate blue 5-Pocket Pant ✓
+  "brook":              "blue",   // stream/water = blue-family; name inference (no image) ✓
 
   // ── BROWN ─────────────────────────────────────────────────────────────────
-  "Americano":          "brown",  // americano coffee = dark brown ✓
+  "americano":          "brown",  // americano coffee = dark brown ✓
 
   // ── ORANGE ────────────────────────────────────────────────────────────────
-  "Solar Flare":        "orange", // solar flare = vivid orange burst ✓
+  "solar flare":        "orange", // solar flare = vivid orange burst ✓
 
   // ── MULTI — camo patterns and graphic prints ───────────────────────────────
   // Camo patterns — would auto-resolve to wrong solid color via token scan
-  "Black Camo":         "multi",  // "Black" token would wrongly win; camo is a print ✓
-  "Digi Camo":          "multi",  // digital camouflage pattern ✓
-  "Serpentine Camo":    "multi",  // serpentine camouflage pattern ✓
-  "Dazzle Camo":        "multi",  // dazzle camouflage pattern ✓
+  "black camo":         "multi",  // "Black" token would wrongly win; camo is a print ✓
+  "digi camo":          "multi",  // digital camouflage pattern ✓
+  "serpentine camo":    "multi",  // serpentine camouflage pattern ✓
+  "dazzle camo":        "multi",  // dazzle camouflage pattern ✓
   // Graphic / motto prints
-  "Iron Flag":          "multi",  // graphic flag print ✓
-  "Abstract Drift":     "multi",  // abstract drift pattern ✓
-  "Flag":               "multi",  // graphic flag print ✓
-  "BIG X":              "multi",  // graphic text print ✓
-  "MANTRA":             "multi",  // graphic text print ✓
-  "PR or ER":           "multi",  // graphic text print ✓
-  "DO HARD THINGS":     "multi",  // graphic motto print ✓
-  "Do Hard Things":     "multi",  // case variant of above ✓
+  "iron flag":          "multi",  // graphic flag print ✓
+  "abstract drift":     "multi",  // abstract drift pattern ✓
+  "flag":               "multi",  // graphic flag print ✓
+  "big x":              "multi",  // graphic text print ✓
+  "mantra":             "multi",  // graphic text print ✓
+  "pr or er":           "multi",  // graphic text print ✓
+  "do hard things":     "multi",  // graphic motto print ✓
 };
