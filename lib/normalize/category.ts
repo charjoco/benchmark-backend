@@ -13,6 +13,7 @@ import { lookupByltCategory, isExcludedByltProductType } from "@/lib/brands/bylt
 import { lookupTenThousandCategory, isExcludedTenThousandProductType } from "@/lib/brands/ten-thousand/categories";
 import { lookupHBCategory, isExcludedHBProductType } from "@/lib/brands/holderness-bourne/categories";
 import { lookupLinksoulCategory, isExcludedLinksoulProductType } from "@/lib/brands/linksoul/categories";
+import { lookupFahertyCategory, isExcludedFahertyProductType, isExcludedFahertyTitle } from "@/lib/brands/faherty/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -68,6 +69,7 @@ export function isExcludedProductType(
   if (brand === "ten-thousand") return isExcludedTenThousandProductType(productType, title);
   if (brand === "holderness-bourne") return isExcludedHBProductType(productType, title);
   if (brand === "linksoul") return isExcludedLinksoulProductType(productType);
+  if (brand === "faherty") return isExcludedFahertyProductType(productType) || isExcludedFahertyTitle(title);
   return false;
 }
 
@@ -215,6 +217,18 @@ export function resolveCategory(
     if (lsCategory) {
       console.log(`[scraper/categorize/linksoul] mapped "${productType}" → "${lsCategory}"`);
       return lsCategory;
+    }
+    return null;
+  }
+
+  // Faherty: curly-apostrophe product_types ("Men's Button Ups" etc.) with title dispatch
+  // across all 6 apparel types. Accessories, footwear, swim, lounge, licensed content
+  // excluded upstream by isExcludedProductType(). Vests handled by shared vest rule above.
+  if (brand === "faherty") {
+    const fahertyCategory = lookupFahertyCategory(productType, title);
+    if (fahertyCategory) {
+      console.log(`[scraper/categorize/faherty] mapped "${productType}" → "${fahertyCategory}"`);
+      return fahertyCategory;
     }
     return null;
   }

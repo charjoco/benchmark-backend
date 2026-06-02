@@ -36,7 +36,7 @@ Jason does not check scrape logs manually. If a problem is not surfaced via the 
 Conventions
 
 Brand keys are lowercase, hyphenated: buck-mason, holderness-bourne, travis-mathew. Mobile lib/constants.ts keys must exactly match backend brandKey values.
-Categories are one of: shirts, polos, longsleeve, hoodies, sweaters, zips, shorts, pants, jackets. Polos includes short-sleeve collared shirts. No other categories without an explicit decision.
+Categories are one of: shirts, polos, longsleeve, hoodies, sweaters, zips, shorts, pants, jackets, vests. Polos includes short-sleeve collared shirts. No other categories without an explicit decision.
 Product exclusions (men's only, no exceptions): women's, children's, footwear, accessories, equipment, gift cards, socks, underwear.
 Color buckets are the 13 defined in lib/normalize/color.ts. Navy must be matched before Grey in the priority order (heather-navy edge case).
 
