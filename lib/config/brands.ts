@@ -45,6 +45,10 @@ export interface BrandConfig {
    *  Set when a brand puts flat-lays or close-crops first and model shots at a later index.
    *  Falls back to images[0] if the preferred index doesn't exist for a given product. */
   preferredImageIndex?: number;
+  /** Number of products per page when fetching /products.json. Defaults to 250 (Shopify max).
+   *  Set lower for brands whose Shopify complexity score exceeds the 500 threshold at 250.
+   *  Mack Weldon: limit=250 → HTTP 500 (complexity); limit=100 → 200. */
+  productsPageSize?: number;
   categoryMappings: Partial<Record<AppCategory, CategoryMapping>>;
 }
 
@@ -176,6 +180,8 @@ export const BRANDS: BrandConfig[] = [
     displayName: "Mack Weldon",
     domain: "mackweldon.com",
     preferredImageIndex: 2,
+    // limit=250 → HTTP 500 (Shopify complexity threshold exceeded); limit=100 → 200
+    productsPageSize: 100,
 
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens"],

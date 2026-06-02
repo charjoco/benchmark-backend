@@ -41,10 +41,9 @@ function delay(ms: number, jitter = 0): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 }
 
-async function fetchAllProducts(domain: string): Promise<ShopifyProduct[]> {
+async function fetchAllProducts(domain: string, limit = 250): Promise<ShopifyProduct[]> {
   const all: ShopifyProduct[] = [];
   let page = 1;
-  const limit = 250;
 
   while (true) {
     const url = `https://${domain}/products.json?limit=${limit}&page=${page}`;
@@ -460,7 +459,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     console.log(`[${config.displayName}] ${mensCollectionIds.size} products in mens collection`);
   }
 
-  const raw = await fetchAllProducts(config.domain);
+  const raw = await fetchAllProducts(config.domain, config.productsPageSize ?? 250);
   console.log(`[${config.displayName}] Found ${raw.length} raw products`);
 
   const genderFiltered = mensCollectionIds.size > 0
