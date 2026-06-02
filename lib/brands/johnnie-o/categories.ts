@@ -9,6 +9,15 @@
 // Licensed product types (NCAA/NFL/MLB/NHL/CAA prefixes, PerryGolf, Ryder Cup, WM) reach
 // the scraper exclusively through JO's game-day collection, which the scraper already
 // excludes. They are not listed here to avoid duplicating that filter.
+//
+// Golf-event title exclusion (isExcludedJOTournamentTitle): JO carries tournament-licensed
+// merchandise for PGA Championship, PGA Tour Championship, THE PLAYERS Championship,
+// Ryder Cup, and U.S. Open. These are excluded for the same reason as H&B's U.S. Open
+// line — licensed event merch, not core brand product. Added 2026-06-01 by Jason's call.
+//
+// False-positive note: "Performance Jersey Polo - PGA Showtime" is a JO brand product
+// (Showtime = colorway/style name) and is intentionally NOT excluded — it does not start
+// with a tournament prefix and does not contain "U.S. Open".
 
 import type { AppCategory } from "@/types";
 
@@ -97,6 +106,29 @@ export function isExcludedJohnnieOTitle(title: string): boolean {
     t.includes("sunglasses")||
     t.includes("dopp kit")  ||
     t.includes("trucker")
+  );
+}
+
+// Golf-event tournament title exclusion.
+// Catches all JO licensed tournament merchandise by title prefix or substring.
+// Patterns verified 2026-06-01 against full JO catalog (987 products):
+//   "PGA Championship ..."          — 12 products (Aronimink course)
+//   "PGA Tour Championship ..."     — 11 products
+//   "THE PLAYERS Championship ..."  — 17 products (both "THE" and "The" variants)
+//   "Ryder Cup ..."                 — 24 products
+//   "... U.S. Open ..."             — 36 products ("126th U.S. Open ...", etc.)
+//
+// NOT excluded: "Performance Jersey Polo - PGA Showtime" — "PGA Showtime" is a JO
+// colorway/style name, not a licensed tournament product. The function does not
+// start-match "pga championship" / "pga tour championship", so it is safe.
+export function isExcludedJOTournamentTitle(title: string): boolean {
+  const t = title.toLowerCase();
+  return (
+    t.startsWith("pga championship")      ||
+    t.startsWith("pga tour championship") ||
+    t.startsWith("the players championship") ||
+    t.startsWith("ryder cup")             ||
+    t.includes("u.s. open")
   );
 }
 

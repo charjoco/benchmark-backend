@@ -30,6 +30,7 @@ import { RHONE_COLORS } from "@/lib/brands/rhone/colors";
 import { BYLT_COLORS } from "@/lib/brands/bylt/colors";
 import { TEN_THOUSAND_COLORS } from "@/lib/brands/ten-thousand/colors";
 import { HB_COLORS } from "@/lib/brands/holderness-bourne/colors";
+import { LINKSOUL_COLORS } from "@/lib/brands/linksoul/colors";
 
 // Lowercase + trim + collapse internal whitespace. Applied before all dictionary lookups.
 function normalize(s: string): string {
@@ -59,6 +60,7 @@ const BRAND_COLOR_MAPS: Partial<Record<string, Record<string, AppColor>>> = {
   "bylt":              normalizeKeys(BYLT_COLORS),
   "ten-thousand":      normalizeKeys(TEN_THOUSAND_COLORS),
   "holderness-bourne": normalizeKeys(HB_COLORS),
+  "linksoul":          normalizeKeys(LINKSOUL_COLORS),
 };
 
 function isValidAppColor(value: string): value is AppColor {

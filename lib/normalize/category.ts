@@ -6,12 +6,13 @@ import { lookupTravisMathewCategory, isExcludedLicensedSports, TM_EXCLUDED_PRODU
 import { lookupTaylorStitchCategory, isArchivedProduct, isExcludedTaylorStitchTitle, TS_EXCLUDED_PRODUCT_TYPES } from "@/lib/brands/taylor-stitch/categories";
 import { lookupBuckMasonCategory, BM_EXCLUDED_PRODUCT_TYPES, isExcludedBMTag, isExcludedBuckMasonTitle } from "@/lib/brands/buck-mason/categories";
 import { lookupToddSnyderCategory, TDS_EXCLUDED_PRODUCT_TYPES, isExcludedTDSLicensedSports, hasExcludedTDSTag } from "@/lib/brands/todd-snyder/categories";
-import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTitle } from "@/lib/brands/johnnie-o/categories";
+import { lookupJohnnieOCategory, JO_EXCLUDED_PRODUCT_TYPES, isExcludedJohnnieOTitle, isExcludedJOTournamentTitle } from "@/lib/brands/johnnie-o/categories";
 import { lookupRhoneCategory, isExcludedRhoneProductType } from "@/lib/brands/rhone/categories";
 import { lookupVuoriCategory, isExcludedVuoriProductType } from "@/lib/brands/vuori/categories";
 import { lookupByltCategory, isExcludedByltProductType } from "@/lib/brands/bylt/categories";
 import { lookupTenThousandCategory, isExcludedTenThousandProductType } from "@/lib/brands/ten-thousand/categories";
 import { lookupHBCategory, isExcludedHBProductType } from "@/lib/brands/holderness-bourne/categories";
+import { lookupLinksoulCategory, isExcludedLinksoulProductType } from "@/lib/brands/linksoul/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -59,13 +60,14 @@ export function isExcludedProductType(
     return TDS_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedTDSLicensedSports(tags, title) || hasExcludedTDSTag(tags);
   }
   if (brand === "johnnie-o") {
-    return JO_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedJohnnieOTitle(title);
+    return JO_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedJohnnieOTitle(title) || isExcludedJOTournamentTitle(title);
   }
   if (brand === "rhone") return isExcludedRhoneProductType(productType, title);
   if (brand === "vuori") return isExcludedVuoriProductType(productType, title);
   if (brand === "bylt") return isExcludedByltProductType(productType, title);
   if (brand === "ten-thousand") return isExcludedTenThousandProductType(productType, title);
   if (brand === "holderness-bourne") return isExcludedHBProductType(productType, title);
+  if (brand === "linksoul") return isExcludedLinksoulProductType(productType);
   return false;
 }
 
@@ -202,6 +204,17 @@ export function resolveCategory(
     if (hbCategory) {
       console.log(`[scraper/categorize/holderness-bourne] mapped "${productType}" → "${hbCategory}"`);
       return hbCategory;
+    }
+    return null;
+  }
+
+  // Linksoul: short English product_type names with Layer title dispatch.
+  // Exclusions (hat, accessories, sock, gift cards, shoe, return) handled upstream.
+  if (brand === "linksoul") {
+    const lsCategory = lookupLinksoulCategory(productType, title);
+    if (lsCategory) {
+      console.log(`[scraper/categorize/linksoul] mapped "${productType}" → "${lsCategory}"`);
+      return lsCategory;
     }
     return null;
   }
