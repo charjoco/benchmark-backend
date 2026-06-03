@@ -385,6 +385,29 @@ export const BRANDS: BrandConfig[] = [
     licensedSportsHandle: "game-day",
     categoryMappings: {}, // Johnnie-O categorization is owned by lib/brands/johnnie-o/categories.ts
   },
+  {
+    brandKey: "mott-and-bow",
+    displayName: "Mott & Bow",
+    domain: "mottandbow.com",
+
+    // Gender is encoded in product_type ("Mens-jeans" vs "Womens-jeans" etc.).
+    // The jeans-only rule in categories.ts accepts only "Mens-jeans" and rejects
+    // everything else, so no separate gender tag filter is needed.
+    mensInclusionTags: [],
+    womensExclusionTags: [],
+
+    colorOptionNames: ["Color"],
+    productsPageSize: 250,
+
+    // No collection-based new-arrivals or sale handle: the only non-empty collection
+    // found was "mens-jeans" (the full jeans catalog), which would flag every jean as
+    // new. New drops are detected via per-colorway firstSeenAt; sale via price comparison.
+    newArrivalsHandle: undefined,
+    saleHandle: undefined,
+    popularHandle: undefined,
+
+    categoryMappings: {}, // Categorization owned by lib/brands/mott-and-bow/categories.ts
+  },
 ];
 
 export const BRAND_KEYS = BRANDS.map((b) => b.brandKey);

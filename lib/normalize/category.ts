@@ -15,6 +15,7 @@ import { lookupHBCategory, isExcludedHBProductType } from "@/lib/brands/holderne
 import { lookupLinksoulCategory, isExcludedLinksoulProductType } from "@/lib/brands/linksoul/categories";
 import { lookupFahertyCategory, isExcludedFahertyProductType, isExcludedFahertyTitle } from "@/lib/brands/faherty/categories";
 import { lookupMWCategory, isExcludedMWProductType, isExcludedMWTitle } from "@/lib/brands/mack-weldon/categories";
+import { lookupMBCategory, isExcludedMBProductType, isExcludedMBBundle } from "@/lib/brands/mott-and-bow/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -42,6 +43,7 @@ export function isExcludedProductType(
   if (brand === "greyson") return GREYSON_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "mack-weldon") return isExcludedMWProductType(productType) || isExcludedMWTitle(title);
+  if (brand === "mott-and-bow") return isExcludedMBProductType(productType, title);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
   }
@@ -239,6 +241,20 @@ export function resolveCategory(
     return null;
   }
 
+  // Mott & Bow: jeans-only brand. Only "Mens-jeans" product_type reaches here
+  // (all others excluded upstream by isExcludedProductType). Bundle products
+  // (multi-pack jeans whose title contains "Pack"/"Bundle") are excluded here
+  // before categorization — they are not single-colorway products.
+  if (brand === "mott-and-bow") {
+    if (isExcludedMBBundle(title)) return null;
+    const mbCategory = lookupMBCategory(productType, title);
+    if (mbCategory) {
+      console.log(`[scraper/categorize/mott-and-bow] mapped "${productType}" → "${mbCategory}"`);
+      return mbCategory;
+    }
+    return null;
+  }
+
   // BYLT: hierarchical "Men's-*" product_type system with U+2019 apostrophes.
   // Exclusions (underwear, boardshorts, tanks, blazers, bundles) handled upstream.
   if (brand === "bylt") {
@@ -291,6 +307,7 @@ export const CATEGORY_LABELS: Record<AppCategory, string> = {
   zips: "Zip-Ups",
   shorts: "Shorts",
   pants: "Pants",
+  denim: "Denim",
 };
 
 export const ALL_CATEGORIES: AppCategory[] = [
@@ -304,4 +321,5 @@ export const ALL_CATEGORIES: AppCategory[] = [
   "zips",
   "shorts",
   "pants",
+  "denim",
 ];

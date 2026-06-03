@@ -8,7 +8,8 @@ export type AppCategory =
   | "shorts"
   | "pants"
   | "jackets"
-  | "vests";
+  | "vests"
+  | "denim";
 
 export type VisionResult =
   | { category: AppCategory }

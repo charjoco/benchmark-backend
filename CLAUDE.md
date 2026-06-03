@@ -18,6 +18,7 @@ BYLT, ASRV, Buck Mason, Reigning Champ, Todd Snyder, Rhone, Mack Weldon, Vuori, 
 Lululemon was previously included and has been intentionally removed. Do not re-add it without an explicit decision from Jason. Nordstrom and REI retailer enrichment scrapers were also removed.
 Public Rec was removed on 2026-04-30 and replaced with nothing (pending). Brand count is currently 17.
 Peter Millar investigation (2026-04-30): petermillar.com is behind Imperva Incapsula WAF — products.json is inaccessible to automated scrapers. All myshopify subdomain variants returned 404; Peter Millar runs on Salesforce Commerce Cloud (not Shopify), confirmed via robots.txt Demandware path. There is no products.json backdoor. Affiliate access requires Impact.com/Svorn integration. Decision: defer Peter Millar until after launch when user traction improves affiliate approval odds. Plan: build affiliate feed ingestion (Impact.com first, Svorn for Peter Millar later). Do not attempt to scrape Peter Millar directly.
+G/FORE investigation (2026-06-03): gfore.com is behind Imperva Incapsula WAF — products.json returns a WAF challenge page, not JSON. All myshopify subdomain variants returned 404. G/FORE runs on Salesforce Commerce Cloud (not Shopify), confirmed via robots.txt Demandware controller paths (/COBilling-Start, /COShipping-Start, /COSummary-Start, /Cart-AddProduct). Same platform and situation as Peter Millar. Do not attempt to scrape G/FORE directly. Defer until affiliate feed integration is built post-launch.
 Ingestion architecture (the rules)
 These rules are the core of what makes Benchmark trustworthy. Violating them is what made the previous system unreliable.
 1. Shopify products.json is the only acquisition method. Every brand is on Shopify and exposes a public /products.json endpoint. This is the sole source of product data. Do not introduce HTML scraping, headless browsers, or email parsing. If a brand stops being on Shopify, that's a conversation, not a code change.
@@ -36,7 +37,7 @@ Jason does not check scrape logs manually. If a problem is not surfaced via the 
 Conventions
 
 Brand keys are lowercase, hyphenated: buck-mason, holderness-bourne, travis-mathew. Mobile lib/constants.ts keys must exactly match backend brandKey values.
-Categories are one of: shirts, polos, longsleeve, hoodies, sweaters, zips, shorts, pants, jackets, vests. Polos includes short-sleeve collared shirts. No other categories without an explicit decision.
+Categories are one of: shirts, polos, longsleeve, hoodies, sweaters, zips, shorts, pants, jackets, vests, denim. Polos includes short-sleeve collared shirts. denim is the 11th category, used exclusively for men's denim jeans (Mott & Bow and future denim brands). No other categories without an explicit decision.
 Product exclusions (men's only, no exceptions): women's, children's, footwear, accessories, equipment, gift cards, socks, underwear.
 Color buckets are the 13 defined in lib/normalize/color.ts. Navy must be matched before Grey in the priority order (heather-navy edge case).
 
