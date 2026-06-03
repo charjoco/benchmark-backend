@@ -14,6 +14,7 @@ import { lookupTenThousandCategory, isExcludedTenThousandProductType } from "@/l
 import { lookupHBCategory, isExcludedHBProductType } from "@/lib/brands/holderness-bourne/categories";
 import { lookupLinksoulCategory, isExcludedLinksoulProductType } from "@/lib/brands/linksoul/categories";
 import { lookupFahertyCategory, isExcludedFahertyProductType, isExcludedFahertyTitle } from "@/lib/brands/faherty/categories";
+import { lookupMWCategory, isExcludedMWProductType, isExcludedMWTitle } from "@/lib/brands/mack-weldon/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -30,13 +31,6 @@ const PRIORITY_ORDER: AppCategory[] = [
   "pants",
 ];
 
-// Mack Weldon non-apparel product types — underwear, bundles, undershirts, accessories.
-// Excludes the large volume of underwear packs (3-Pack Boxer Briefs, etc.) and sock bundles
-// that would otherwise pass gender filters and corrupt color data with size-as-color entries.
-const MW_EXCLUDED_PRODUCT_TYPES = new Set([
-  "underwear", "bundles", "undershirts", "accessories", "gift card",
-]);
-
 /** Returns true for products that should be skipped entirely — no rules, no vision, no stub row. */
 export function isExcludedProductType(
   brand: string,
@@ -47,7 +41,7 @@ export function isExcludedProductType(
   const normalized = productType.toLowerCase().trim();
   if (brand === "greyson") return GREYSON_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
-  if (brand === "mack-weldon") return MW_EXCLUDED_PRODUCT_TYPES.has(normalized);
+  if (brand === "mack-weldon") return isExcludedMWProductType(productType) || isExcludedMWTitle(title);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
   }
@@ -229,6 +223,18 @@ export function resolveCategory(
     if (fahertyCategory) {
       console.log(`[scraper/categorize/faherty] mapped "${productType}" → "${fahertyCategory}"`);
       return fahertyCategory;
+    }
+    return null;
+  }
+
+  // Mack Weldon: three-type system (Tops / Bottoms / Final Sale) with strict title dispatch.
+  // Type + title exclusions (underwear, sleep, accessories, swim, junk types) handled upstream
+  // by isExcludedProductType(). Vests handled by shared vest rule above.
+  if (brand === "mack-weldon") {
+    const mwCategory = lookupMWCategory(productType, title);
+    if (mwCategory) {
+      console.log(`[scraper/categorize/mack-weldon] mapped "${productType}" → "${mwCategory}"`);
+      return mwCategory;
     }
     return null;
   }

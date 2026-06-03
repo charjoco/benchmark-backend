@@ -189,16 +189,7 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "new-arrivals",
     saleHandle: "sale",
     popularHandle: "bestsellers",
-    categoryMappings: {
-      jackets: { productTypes: ["Jackets", "Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell"] },
-      shirts: { productTypes: ["T-Shirts", "Short Sleeve"], tags: ["short sleeve", "t-shirt", "tee"] },
-      longsleeve: { productTypes: ["Long Sleeve"], tags: ["long sleeve"] },
-      hoodies: { productTypes: ["Hoodies"], tags: ["hoodie", "pullover"] },
-      sweaters: { productTypes: ["Sweatshirts", "Sweaters"], tags: ["sweatshirt", "crewneck"] },
-      zips: { tags: ["zip", "quarter zip"] },
-      shorts: { productTypes: ["Shorts"] },
-      pants: { productTypes: ["Pants", "Joggers", "Sweatpants"] },
-    },
+    categoryMappings: {}, // Categorization owned by lib/brands/mack-weldon/categories.ts
   },
   {
     brandKey: "ten-thousand",
