@@ -21,11 +21,11 @@ export interface BrandConfig {
    *  Use for brands like BYLT where all men's products have "Men's-" in the type. */
   requireMensProductType?: boolean;
   colorOptionNames: string[];
-  /** "option" (default): color from Shopify variant option. "title": extract color from product title after last separator. "tag": extract from a product tag with the given colorTagPrefix */
-  colorSource?: "option" | "title" | "tag";
-  /** When colorSource="title", the separator used to split color from product name. Defaults to " - ". Taylor Stitch uses " in ". */
+  /** "option" (default): color from Shopify variant option. "title": extract color from product title after last separator. "tag": extract from a product tag with the given colorTagPrefix. "tag-or-title": try colorTagPrefix tag first, fall back to title suffix — for brands whose catalog has color_ tags on most products but some products lack them. */
+  colorSource?: "option" | "title" | "tag" | "tag-or-title";
+  /** When colorSource="title" or "tag-or-title", the separator used to split color from product name. Defaults to " - ". Taylor Stitch uses " in ". */
   colorTitleSeparator?: string;
-  /** When colorSource="tag", the tag prefix to strip (e.g. "color--" → tag "color--navy" → "navy") */
+  /** When colorSource="tag" or "tag-or-title", the tag prefix to strip (e.g. "color--" → tag "color--navy" → "navy") */
   colorTagPrefix?: string;
   /** Shopify collection handle for new arrivals — scraped first, products force-marked isNew=true */
   newArrivalsHandle?: string;
@@ -407,6 +407,29 @@ export const BRANDS: BrandConfig[] = [
     popularHandle: undefined,
 
     categoryMappings: {}, // Categorization owned by lib/brands/mott-and-bow/categories.ts
+  },
+  {
+    brandKey: "duer",
+    displayName: "DUER",
+    domain: "shopduer.com",
+
+    // DUER has no Color variant option — color lives in color_* product tags (preferred)
+    // falling back to the title suffix (last " - " segment). Each colorway is a separate product.
+    mensInclusionTags: ["gender_mens"],
+    womensExclusionTags: ["gender_womens"],
+    colorOptionNames: [],
+    colorSource: "tag-or-title",
+    colorTagPrefix: "color_",
+
+    newArrivalsHandle: "new-arrivals",
+    // No usable sale collection — price-drop fallback handles sale detection instead.
+    saleHandle: undefined,
+    popularHandle: "best-sellers",
+
+    // limit=250 is Shopify max and works fine for DUER's catalog size (~491 products).
+    productsPageSize: 250,
+
+    categoryMappings: {}, // Categorization owned by lib/brands/duer/categories.ts
   },
   {
     brandKey: "ag-jeans",

@@ -216,6 +216,24 @@ function groupVariantsByColor(
     return groups;
   }
 
+  // "tag-or-title": for brands where color lives in a tag on most products but some
+  // products only have a title suffix (e.g. DUER uses color_* tags but a handful of
+  // products have no tag because their title never got a color suffix either).
+  // Tag is preferred — it's explicit and unambiguous. Title suffix is the fallback.
+  if (config.colorSource === "tag-or-title" && config.colorTagPrefix) {
+    const prefix = config.colorTagPrefix.toLowerCase();
+    const colorTag = product.tags.find((t) => t.toLowerCase().startsWith(prefix));
+    if (colorTag) {
+      const raw = colorTag.slice(config.colorTagPrefix.length).trim();
+      const color = raw.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      groups[color] = [...product.variants];
+    } else {
+      const color = extractColorFromTitle(product.title, config.colorTitleSeparator);
+      groups[color] = [...product.variants];
+    }
+    return groups;
+  }
+
   const colorOptionIndex = getColorOptionIndex(product, config);
 
   // Rhone (and potentially other brands) encode colorways as a "Handle" option whose values

@@ -17,6 +17,7 @@ import { lookupFahertyCategory, isExcludedFahertyProductType, isExcludedFahertyT
 import { lookupMWCategory, isExcludedMWProductType, isExcludedMWTitle } from "@/lib/brands/mack-weldon/categories";
 import { lookupMBCategory, isExcludedMBProductType, isExcludedMBBundle } from "@/lib/brands/mott-and-bow/categories";
 import { lookupAGCategory, isExcludedAGProductType, isExcludedAGBottomsTitle } from "@/lib/brands/ag-jeans/categories";
+import { lookupDuerCategory, isExcludedDuerProductType } from "@/lib/brands/duer/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -46,6 +47,7 @@ export function isExcludedProductType(
   if (brand === "mack-weldon") return isExcludedMWProductType(productType) || isExcludedMWTitle(title);
   if (brand === "mott-and-bow") return isExcludedMBProductType(productType, title);
   if (brand === "ag-jeans") return isExcludedAGProductType(productType);
+  if (brand === "duer") return isExcludedDuerProductType(productType, tags);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
   }
@@ -239,6 +241,18 @@ export function resolveCategory(
     if (mwCategory) {
       console.log(`[scraper/categorize/mack-weldon] mapped "${productType}" → "${mwCategory}"`);
       return mwCategory;
+    }
+    return null;
+  }
+
+  // DUER: jeans-only ingest. Only type=Jeans, non-base-product products reach here
+  // (all others excluded upstream by isExcludedProductType). All remaining products are
+  // men's performance denim jeans.
+  if (brand === "duer") {
+    const duerCategory = lookupDuerCategory(productType);
+    if (duerCategory) {
+      console.log(`[scraper/categorize/duer] mapped "${productType}" → "${duerCategory}"`);
+      return duerCategory;
     }
     return null;
   }
