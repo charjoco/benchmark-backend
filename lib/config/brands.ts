@@ -408,6 +408,25 @@ export const BRANDS: BrandConfig[] = [
 
     categoryMappings: {}, // Categorization owned by lib/brands/mott-and-bow/categories.ts
   },
+  {
+    brandKey: "ag-jeans",
+    displayName: "AG Jeans",
+    domain: "agjeans.com",
+
+    // Gender encoded in tags: "Gender:Men" / "Gender:Women" (capital G, capital M/W).
+    // scraper normalizes tags to lowercase before comparing, so "gender:men" matches.
+    mensInclusionTags: ["gender:men"],
+    womensExclusionTags: ["gender:women"],
+
+    colorOptionNames: ["Color"],
+    productsPageSize: 250,
+
+    newArrivalsHandle: "new-arrivals",
+    saleHandle: "sale",
+    popularHandle: "best-sellers",
+
+    categoryMappings: {}, // Categorization owned by lib/brands/ag-jeans/categories.ts
+  },
 ];
 
 export const BRAND_KEYS = BRANDS.map((b) => b.brandKey);

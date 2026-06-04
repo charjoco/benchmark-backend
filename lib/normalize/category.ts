@@ -16,6 +16,7 @@ import { lookupLinksoulCategory, isExcludedLinksoulProductType } from "@/lib/bra
 import { lookupFahertyCategory, isExcludedFahertyProductType, isExcludedFahertyTitle } from "@/lib/brands/faherty/categories";
 import { lookupMWCategory, isExcludedMWProductType, isExcludedMWTitle } from "@/lib/brands/mack-weldon/categories";
 import { lookupMBCategory, isExcludedMBProductType, isExcludedMBBundle } from "@/lib/brands/mott-and-bow/categories";
+import { lookupAGCategory, isExcludedAGProductType, isExcludedAGBottomsTitle } from "@/lib/brands/ag-jeans/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -44,6 +45,7 @@ export function isExcludedProductType(
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "mack-weldon") return isExcludedMWProductType(productType) || isExcludedMWTitle(title);
   if (brand === "mott-and-bow") return isExcludedMBProductType(productType, title);
+  if (brand === "ag-jeans") return isExcludedAGProductType(productType);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
   }
@@ -237,6 +239,19 @@ export function resolveCategory(
     if (mwCategory) {
       console.log(`[scraper/categorize/mack-weldon] mapped "${productType}" → "${mwCategory}"`);
       return mwCategory;
+    }
+    return null;
+  }
+
+  // AG Jeans: jeans-only brand. Only "MENS BOTTOMS" reaches here (all others excluded
+  // upstream by isExcludedProductType). Secondary jeans filter (Category:Jeans tag OR
+  // jean in title) excludes chinos (106), shorts (27), and untagged pants within the type.
+  if (brand === "ag-jeans") {
+    if (isExcludedAGBottomsTitle(tags, title)) return null;
+    const agCategory = lookupAGCategory(productType, title);
+    if (agCategory) {
+      console.log(`[scraper/categorize/ag-jeans] mapped "${productType}" → "${agCategory}"`);
+      return agCategory;
     }
     return null;
   }
