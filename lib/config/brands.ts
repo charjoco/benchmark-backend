@@ -432,6 +432,30 @@ export const BRANDS: BrandConfig[] = [
     categoryMappings: {}, // Categorization owned by lib/brands/duer/categories.ts
   },
   {
+    brandKey: "paige",
+    displayName: "Paige",
+    // paige.com is behind Vercel bot protection (429); paige.myshopify.com is 401.
+    // shop.paige.com is the accessible Shopify JSON endpoint.
+    domain: "shop.paige.com",
+
+    // Gender encoded as brand:Mens / brand:Womens tag (capital M/W; scraper normalizes to lowercase).
+    // brand:Petites is women's petite line — excluded by inclusion filter (not brand:mens).
+    mensInclusionTags: ["brand:mens"],
+    womensExclusionTags: ["brand:womens", "brand:petites"],
+
+    // No Color variant option — color lives in the product title after " - " (default separator).
+    // Each (style × inseam × color) combination is a separate Shopify product.
+    colorOptionNames: [],
+    colorSource: "title",
+
+    newArrivalsHandle: "men-new-arrivals",
+    saleHandle: "men-sale",
+    // No usable bestsellers collection found; omit.
+    popularHandle: undefined,
+
+    categoryMappings: {}, // Categorization owned by lib/brands/paige/categories.ts
+  },
+  {
     brandKey: "ag-jeans",
     displayName: "AG Jeans",
     domain: "agjeans.com",
