@@ -549,6 +549,39 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     console.log(`[${config.displayName}] ${before - menProducts.length} licensed sports products excluded`);
   }
 
+  // Paige: collapse per-inseam duplicates to one product per colorway.
+  // Paige sells each inseam (30/32/34/37 in) as a separate Shopify product, so the
+  // same colorway appears 2–4 times. Group by style:* + styleColor:* tag pair and
+  // keep the product whose inseam is closest to 32" (standard size).
+  if (config.brandKey === "paige") {
+    const before = menProducts.length;
+    const groups = new Map<string, typeof menProducts>();
+    for (const p of menProducts) {
+      const tags = p.tags.map((t) => t.toLowerCase());
+      const style = tags.find((t) => t.startsWith("style:")) ?? "";
+      const styleColor = tags.find((t) => t.startsWith("stylecolor:")) ?? "";
+      const key = `${style}|${styleColor}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(p);
+    }
+    menProducts = [];
+    for (const group of groups.values()) {
+      if (group.length === 1) {
+        menProducts.push(group[0]);
+      } else {
+        const best = group.reduce((a, b) => {
+          const inseamOf = (p: (typeof group)[0]) => {
+            const m = p.title.match(/\b(\d+)\s+[Ii]nch\b/);
+            return m ? parseInt(m[1], 10) : 0;
+          };
+          return Math.abs(inseamOf(a) - 32) <= Math.abs(inseamOf(b) - 32) ? a : b;
+        });
+        menProducts.push(best);
+      }
+    }
+    console.log(`[paige] inseam dedup: ${before} → ${menProducts.length} colorways`);
+  }
+
   // Build the set of valid men's product IDs for stale cleanup later
   const validMensExternalIds = new Set(menProducts.map((p) => String(p.id)));
 

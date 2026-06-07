@@ -29,72 +29,72 @@ import type { AppColor } from "@/lib/normalize/colors/canonical";
 // none auto-resolve via canonical keyword scan.
 //
 // ── BLUES GROUP NOTE ────────────────────────────────────────────────────────────────────────
-// All 59 Blues-group names are denim washes → mapped to "blue" (jeans-color default).
-// Exception: Inkwell → navy. Ink is the darkest pigment; "Inkwell" is Paige's deepest
-// indigo wash (image-verified: near-black dark indigo).
+// Paige groups all denim washes under "colorGroup:Blues" regardless of actual color.
+// Image-audited 2026-06-06 — all 58 washes checked against shop.paige.com product photos.
+// Results: navy=21, blue=26, grey=9, white=1, black=1.
 // ────────────────────────────────────────────────────────────────────────────────────────────
 
 export const PAIGE_COLORS: Record<string, AppColor> = {
 
-  // ── BLUES GROUP: DENIM WASHES → blue ────────────────────────────────────────
+  // ── BLUES GROUP: DENIM WASHES (image-audited 2026-06-06) ─────────────────────
   // All proprietary place/person wash names; no color semantics in the names themselves.
-  // Mapped uniformly to blue — the primary identity of denim fabric.
-  "arti":             "blue",
+  // "destructed" = distressed finish, not a modifier → explicit entry needed.
+  "arti":             "grey",
   "bayson":           "blue",
-  "benicio":          "blue",
-  "bergen":           "blue",
-  "berto destructed": "blue",   // "destructed" = distressed finish, not a modifier → needs explicit entry
-  "blondie":          "blue",
+  "benicio":          "navy",
+  "bergen":           "grey",
+  "berto destructed": "blue",
+  "blondie":          "navy",
   "bradner":          "blue",
-  "braswell":         "blue",
-  "brockton":         "blue",
-  "bromley":          "blue",
-  "bunker":           "blue",
+  "braswell":         "navy",
+  "brockton":         "navy",
+  "bromley":          "navy",
+  "bunker":           "navy",
   "bushman":          "blue",
   "carrick":          "blue",
   "cartwright":       "blue",
-  "cellar":           "blue",
-  "cormac":           "blue",
+  "cellar":           "navy",
+  "cormac":           "navy",
   "covello":          "blue",
   "cumberland":       "blue",
-  "dade":             "blue",
+  "dade":             "navy",
   "daroco":           "blue",
-  "eldron":           "blue",
-  "elshin":           "blue",
+  "eldron":           "navy",
+  "elshin":           "grey",
   "emberton":         "blue",
-  "evanston":         "blue",
+  "evanston":         "navy",
   "ferdinand":        "blue",
-  "franjo":           "blue",
+  "franjo":           "navy",
   "hansley":          "blue",
-  "harlano":          "blue",
-  "hastings":         "blue",
-  "healet":           "blue",
+  "harlano":          "black",  // jet black denim (Paige groups in Blues collection)
+  "hastings":         "navy",
+  "healet":           "navy",
   "holoway":          "blue",
-  "inkwell":          "navy",   // darkest indigo wash — ink = near-black pigment (image-verified)
-  "irvington":        "blue",
+  "inkwell":          "navy",   // darkest indigo wash — ink = near-black pigment
+  "irvington":        "navy",
   "judkins":          "blue",
   "kenmore":          "blue",
   "keppler":          "blue",
   "keswick":          "blue",
-  "kian":             "blue",
-  "kirkwin":          "blue",
+  "kian":             "grey",
+  "kirkwin":          "navy",
   "laden":            "blue",
   "levine":           "blue",
   "milam":            "blue",
   "montfort":         "blue",
   "murrow":           "blue",
-  "norby":            "blue",
-  "pasco":            "blue",
-  "pembry":           "blue",
-  "remo":             "blue",
-  "russ":             "blue",
+  "norby":            "white",  // pale off-white/ecru wash
+  "pasco":            "grey",
+  "pembry":           "navy",
+  "remo":             "navy",
+  "russ":             "navy",
   "salzedo":          "blue",
-  "satler":           "blue",
-  "sheldon":          "blue",
+  "satler":           "navy",
+  "sheldon":          "grey",
   "towry":            "blue",
-  "truxton":          "blue",
-  "vashon":           "blue",
-  "wainwright":       "blue",
+  "truxton":          "grey",
+  "vashon":           "grey",
+  "wainwright":       "grey",
   "whitby":           "blue",
   "willard":          "blue",
 
