@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { SizeVariant, Colorway } from "@/types";
+import type { SizeVariant, Colorway, Seller } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     ...p,
     sizes: JSON.parse(p.sizes) as SizeVariant[],
     colorways: JSON.parse(p.colorways) as Colorway[],
+    sellers: JSON.parse(p.sellers) as Seller[],
   }));
 
   return NextResponse.json({ products });
