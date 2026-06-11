@@ -47,7 +47,7 @@ export function isExcludedProductType(
   if (brand === "asrv") return ASRV_EXCLUDED_PRODUCT_TYPES.has(normalized);
   if (brand === "mack-weldon") return isExcludedMWProductType(productType) || isExcludedMWTitle(title);
   if (brand === "mott-and-bow") return isExcludedMBProductType(productType, title);
-  if (brand === "ag-jeans") return isExcludedAGProductType(productType);
+  if (brand === "ag-jeans") return isExcludedAGProductType(productType) || isExcludedAGBottomsTitle(tags, title);
   if (brand === "duer") return isExcludedDuerProductType(productType, tags);
   if (brand === "paige") return isExcludedPaigeProduct(tags, title);
   if (brand === "travis-mathew") {
@@ -271,11 +271,10 @@ export function resolveCategory(
     return null;
   }
 
-  // AG Jeans: jeans-only brand. Only "MENS BOTTOMS" reaches here (all others excluded
-  // upstream by isExcludedProductType). Secondary jeans filter (Category:Jeans tag OR
-  // jean in title) excludes chinos (106), shorts (27), and untagged pants within the type.
+  // AG Jeans: jeans-only brand. Only MENS BOTTOMS denim jeans reach here — non-MENS-BOTTOMS
+  // types and non-jeans MENS BOTTOMS (chinos, shorts) are both excluded upstream by
+  // isExcludedProductType (which now calls isExcludedAGBottomsTitle at the hard gate).
   if (brand === "ag-jeans") {
-    if (isExcludedAGBottomsTitle(tags, title)) return null;
     const agCategory = lookupAGCategory(productType, title);
     if (agCategory) {
       console.log(`[scraper/categorize/ag-jeans] mapped "${productType}" → "${agCategory}"`);

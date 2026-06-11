@@ -27,11 +27,10 @@ export function isExcludedAGProductType(productType: string): boolean {
   return !AG_KEEP_TYPES.has(productType.toLowerCase().trim());
 }
 
-// Within MENS BOTTOMS: keep only jeans (by Category:Jeans tag or jean in title).
-// Also excludes bundle-deal placeholder products whose Color option is "BUNDLED" —
-// these carry "Color Name:BUNDLED" or "ColorCode:BLD" tags and have no real colorway.
-// (4 products: Everett/Graduate/Dylan/Tellis 360° Jean in bundle SKU *BLD)
-// Returns true → exclude.
+// Hard-gate secondary filter, called from isExcludedProductType after the type check passes.
+// Within MENS BOTTOMS: keeps only jeans (Category:Jeans tag OR "jean" in title).
+// Also hard-skips bundle-deal placeholder products (Color Name:BUNDLED / ColorCode:BLD tags).
+// Returns true → hard-skip (no DB row, no vision attempt).
 export function isExcludedAGBottomsTitle(tags: string[], title: string): boolean {
   // Bundle-deal exclusion — Color Name:BUNDLED tag is the definitive signal
   if (tags.some((t) => t === "Color Name:BUNDLED" || t === "ColorCode:BLD")) return true;
