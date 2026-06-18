@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
     ...(onSale && { onSale: true }),
     ...(hideSaleInDefaultFeed && !drops && { OR: [{ onSale: false }, { isNew: true }] }),
     ...(isNew && { isNew: true }),
-    ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } }),
+    ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 72 * 60 * 60 * 1000) } }),
     ...(priceDrops && { priceDroppedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
     ...(colorFilter && sizeFilter
       ? { AND: [colorFilter, sizeFilter] }
