@@ -19,6 +19,7 @@ import { lookupMBCategory, isExcludedMBProductType, isExcludedMBBundle } from "@
 import { lookupAGCategory, isExcludedAGProductType, isExcludedAGBottomsTitle } from "@/lib/brands/ag-jeans/categories";
 import { lookupDuerCategory, isExcludedDuerProductType } from "@/lib/brands/duer/categories";
 import { lookupPaigeCategory, isExcludedPaigeProduct } from "@/lib/brands/paige/categories";
+import { lookupAloCategory, isExcludedAloProductType } from "@/lib/brands/alo/categories";
 
 // jackets first — "Jackets & Hoodies" type shouldn't be caught by hoodies/sweaters
 // longsleeve before shirts — "Long Sleeve Tees" type shouldn't match shirts' "Tees" substring
@@ -50,6 +51,7 @@ export function isExcludedProductType(
   if (brand === "ag-jeans") return isExcludedAGProductType(productType) || isExcludedAGBottomsTitle(tags, title);
   if (brand === "duer") return isExcludedDuerProductType(productType, tags);
   if (brand === "paige") return isExcludedPaigeProduct(tags, title);
+  if (brand === "alo") return isExcludedAloProductType(productType, title);
   if (brand === "travis-mathew") {
     return TM_EXCLUDED_PRODUCT_TYPES.has(normalized) || isExcludedLicensedSports(productType, tags, title);
   }
@@ -293,6 +295,20 @@ export function resolveCategory(
     if (mbCategory) {
       console.log(`[scraper/categorize/mott-and-bow] mapped "${productType}" → "${mbCategory}"`);
       return mbCategory;
+    }
+    return null;
+  }
+
+  // Alo Yoga: women's-led catalog, men's apparel only. Gender + basic-tier cut
+  // enforced upstream by isExcludedAloProductType (product_type ^Men:(Bottoms|Tops|
+  // Outerwear):, all tanks cut, plain SS/LS tees cut). Only kept men's apparel
+  // reaches here; lookupAloCategory maps it to the locked categories. Structured
+  // zip/hooded long-sleeve layers route to zips/hoodies per the 2026-06-23 decision.
+  if (brand === "alo") {
+    const aloCategory = lookupAloCategory(productType, tags, title);
+    if (aloCategory) {
+      console.log(`[scraper/categorize/alo] mapped "${productType}" → "${aloCategory}"`);
+      return aloCategory;
     }
     return null;
   }

@@ -474,6 +474,33 @@ export const BRANDS: BrandConfig[] = [
 
     categoryMappings: {}, // Categorization owned by lib/brands/ag-jeans/categories.ts
   },
+  {
+    brandKey: "alo",
+    displayName: "Alo Yoga",
+    domain: "www.aloyoga.com",
+
+    // Alo is a women's-led catalog. Gender is carried in product_type as a
+    // structured taxonomy ("Men:Bottoms:Shorts", "Women:Tops:..."), NOT in tags.
+    // The men's gate is enforced precisely by isExcludedAloProductType() (product_type
+    // must match ^Men:(Bottoms|Tops|Outerwear):) — see lib/brands/alo/categories.ts.
+    //
+    // We intentionally do NOT use tag/type-based womens exclusion here:
+    //   - requireMensProductType is unusable: "women" contains the substring "men".
+    //   - womensExclusionTags ["women:"] would wrongly drop real men's items — 2 men's
+    //     jackets (Renown Varsity Jacket, Rain Or Shine Long Coat) carry a stray
+    //     "Women:Fashion" tag. The product_type gate handles gender correctly instead.
+    mensInclusionTags: [],
+    womensExclusionTags: [],
+
+    colorOptionNames: ["Color"],
+    // Color lives in the "Color" variant option; dry run confirmed it equals the
+    // title suffix for 656/656 men's products. Title suffix is the natural fallback.
+    colorSource: "option",
+
+    popularHandle: "mens-bestsellers",
+
+    categoryMappings: {}, // Categorization owned by lib/brands/alo/categories.ts
+  },
 ];
 
 export const BRAND_KEYS = BRANDS.map((b) => b.brandKey);

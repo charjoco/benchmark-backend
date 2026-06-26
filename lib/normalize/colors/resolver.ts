@@ -37,6 +37,7 @@ import { MOTT_AND_BOW_COLORS } from "@/lib/brands/mott-and-bow/colors";
 import { AG_JEANS_COLORS } from "@/lib/brands/ag-jeans/colors";
 import { DUER_COLORS } from "@/lib/brands/duer/colors";
 import { PAIGE_COLORS } from "@/lib/brands/paige/colors";
+import { ALO_COLORS } from "@/lib/brands/alo/colors";
 
 // Lowercase + trim + collapse internal whitespace. Applied before all dictionary lookups.
 function normalize(s: string): string {
@@ -73,6 +74,7 @@ const BRAND_COLOR_MAPS: Partial<Record<string, Record<string, AppColor>>> = {
   "ag-jeans":          normalizeKeys(AG_JEANS_COLORS),
   "duer":              normalizeKeys(DUER_COLORS),
   "paige":             normalizeKeys(PAIGE_COLORS),
+  "alo":               normalizeKeys(ALO_COLORS),
 };
 
 function isValidAppColor(value: string): value is AppColor {
