@@ -347,9 +347,14 @@ export const BRANDS: BrandConfig[] = [
     displayName: "TravisMathew",
     domain: "travismathew.com",
 
-    // No gender tags in their catalog — /collections/mens is the authoritative gender filter.
-    // isMensProduct() is bypassed for this brand; mensCollectionHandle is the sole filter.
-    // womensExclusionTags kept for documentation; not active while mensCollectionHandle is set.
+    // No gender tags in their catalog — /collections/mens was the authoritative gender filter.
+    // ⚠️ BROKEN (confirmed 2026-07-03): travismathew.com/collections/mens/products.json now
+    // returns HTTP 500, and collection-level products.json is disabled site-wide for this brand
+    // (mens-all/men/shop-mens all return empty). So mensCollectionHandle resolves to 0 IDs and
+    // the scraper falls back to the isMensProduct() heuristic (now hardened with youth + women's
+    // product_type exclusions). Left configured ON PURPOSE so the "[SCRAPE WARNING]" in
+    // shopify.ts keeps firing as a signal the endpoint is still broken — remove only once a
+    // working men's collection handle is found or collection products.json is re-enabled.
     mensCollectionHandle: "mens",
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "dress", "romper", "skort", "jumpsuit"],

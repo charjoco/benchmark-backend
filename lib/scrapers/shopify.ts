@@ -143,6 +143,18 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
     if (hasWomensTag) return false;
   }
 
+  // Women's product_type exclusion \u2014 deliberate, not coincidental. Some brands
+  // (e.g. TravisMathew) carry women's garment types with NO gender prefix on the
+  // product_type or tags; without this they only get caught by chance via the title
+  // words below. Matched against the normalized (lowercased) product_type.
+  // "active top"/"active tank"/"active dress" are TM's Moveknit/Skyloft women's
+  // activewear lines (Sport Top, Longline Tank, etc.).
+  const WOMENS_PRODUCT_TYPES = new Set([
+    "dress", "skort", "skirt", "legging", "romper", "jumpsuit", "bra top",
+    "active dress", "active tank", "active top",
+  ]);
+  if (WOMENS_PRODUCT_TYPES.has(type)) return false;
+
   // Title-based exclusion: catch women's items that slip through gender tagging.
   // Space-padded " bra " avoids false positives on "Chambray", "Braves", "Nebraska", "Branch".
   // Leading-space " dress" avoids false positives on "Address Unknown".
@@ -150,6 +162,15 @@ function isMensProduct(product: ShopifyProduct, config: BrandConfig): boolean {
   if (womensTitleWords.some((w) => title.includes(w))) return false;
   // Also exclude if title starts with "women" (catches "Women's Flow Short", "Women's Everyday Pant", etc.)
   if (title.startsWith("women")) return false;
+
+  // Youth/age exclusion \u2014 catch kids' items by title with case-insensitive word
+  // boundaries. Brands like TravisMathew put youth products in the main catalog with
+  // no gender/age field, so without this they pass the men's heuristic (this is the
+  // confirmed source of the youth leak once the collection gate fell back to here).
+  // Word boundaries prevent false positives: "boys" won't match inside another word,
+  // "kid" won't match "kidney", "infant" won't match a larger token, etc.
+  const YOUTH_TITLE_RE = /\b(youth|boys|girls|juniors?|kids?|toddler|infant)\b/i;
+  if (YOUTH_TITLE_RE.test(product.title)) return false;
 
   // Brand-specific title prefix exclusion (e.g. ASRV women's line uses "W0" prefix)
   if (config.womensTitlePrefixes && config.womensTitlePrefixes.some((p) => product.title.startsWith(p))) return false;
@@ -479,6 +500,18 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
 
   const raw = await fetchAllProducts(config.domain, config.productsPageSize ?? 250);
   console.log(`[${config.displayName}] Found ${raw.length} raw products`);
+
+  // Loud fallback: a configured mensCollectionHandle that resolves to 0 IDs is a
+  // SILENT DEGRADATION — the intended authoritative gender gate failed (endpoint
+  // 500/empty) and we're about to gate on the isMensProduct heuristic instead.
+  // Surface it so the next silent gender/age leak becomes a visible warning.
+  if (config.mensCollectionHandle && mensCollectionIds.size === 0) {
+    console.warn(
+      `[SCRAPE WARNING] ${config.brandKey}: mensCollectionHandle '${config.mensCollectionHandle}' ` +
+        `resolved to 0 collection IDs (endpoint 500/empty) — falling back to isMensProduct heuristic gate. ` +
+        `Gender/age gating is NOT authoritative for this brand.`
+    );
+  }
 
   const genderFiltered = mensCollectionIds.size > 0
     ? raw.filter((p) => mensCollectionIds.has(String(p.id)))
