@@ -501,21 +501,82 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   const raw = await fetchAllProducts(config.domain, config.productsPageSize ?? 250);
   console.log(`[${config.displayName}] Found ${raw.length} raw products`);
 
-  // Loud fallback: a configured mensCollectionHandle that resolves to 0 IDs is a
-  // SILENT DEGRADATION — the intended authoritative gender gate failed (endpoint
-  // 500/empty) and we're about to gate on the isMensProduct heuristic instead.
-  // Surface it so the next silent gender/age leak becomes a visible warning.
-  if (config.mensCollectionHandle && mensCollectionIds.size === 0) {
-    console.warn(
-      `[SCRAPE WARNING] ${config.brandKey}: mensCollectionHandle '${config.mensCollectionHandle}' ` +
-        `resolved to 0 collection IDs (endpoint 500/empty) — falling back to isMensProduct heuristic gate. ` +
-        `Gender/age gating is NOT authoritative for this brand.`
+  // ── Gender/age gate ────────────────────────────────────────────────────────
+  let genderFiltered: ShopifyProduct[];
+
+  if (config.excludeCollectionHandles && config.excludeCollectionHandles.length > 0) {
+    // DETERMINISTIC EXCLUSION GATE (primary for travis-mathew): men's = flat catalog minus
+    // the union of the listed collections' product IDs. Uses the site's own working women's/youth
+    // collection endpoints instead of the dead /collections/mens. Each fetch paginates fully.
+    const excludeIds = new Set<string>();
+    let gateFailed = false;
+    for (const handle of config.excludeCollectionHandles) {
+      const ids = await fetchCollectionProductIds(config.domain, handle);
+      console.log(`[${config.displayName}] exclusion collection '${handle}': ${ids.size} IDs`);
+      if (ids.size === 0) {
+        console.warn(
+          `[SCRAPE WARNING] ${config.brandKey}: exclusion collection '${handle}' returned 0 IDs ` +
+            `(non-200 or empty) — the deterministic gender/age gate is INCOMPLETE.`
+        );
+        gateFailed = true;
+      }
+      for (const id of ids) excludeIds.add(id);
+    }
+
+    if (gateFailed) {
+      // FAIL CASE — skip-and-warn. If a women's/youth collection endpoint breaks (as /mens
+      // already did), we must NOT fall through to an ungated catalog, which would dump women's
+      // and youth into a men's app. Stale data beats leaked data: abort this brand's scrape and
+      // leave existing rows untouched until the endpoint recovers.
+      console.error(
+        `[SCRAPE ABORT] ${config.brandKey}: exclusion gate failed — a women's/youth collection ` +
+          `returned 0/non-200 IDs. Skipping scrape; existing catalog left UNCHANGED to avoid ` +
+          `leaking ungated women's/youth products.`
+      );
+      return { found: raw.length, upserted: 0, skipped: raw.length };
+    }
+
+    genderFiltered = raw.filter((p) => !excludeIds.has(String(p.id)));
+    console.log(
+      `[${config.displayName}] exclusion gate: ${excludeIds.size} excluded (women/youth) → ` +
+        `${genderFiltered.length} men's`
     );
+  } else if (mensCollectionIds.size > 0) {
+    // Inclusion gate: only products in the men's collection.
+    genderFiltered = raw.filter((p) => mensCollectionIds.has(String(p.id)));
+  } else {
+    // Heuristic fallback. Loud if a mensCollectionHandle was configured but resolved to 0 IDs
+    // (silent degradation of the intended authoritative gate).
+    if (config.mensCollectionHandle) {
+      console.warn(
+        `[SCRAPE WARNING] ${config.brandKey}: mensCollectionHandle '${config.mensCollectionHandle}' ` +
+          `resolved to 0 collection IDs (endpoint 500/empty) — falling back to isMensProduct heuristic gate. ` +
+          `Gender/age gating is NOT authoritative for this brand.`
+      );
+    }
+    genderFiltered = raw.filter((p) => isMensProduct(p, config));
   }
 
-  const genderFiltered = mensCollectionIds.size > 0
-    ? raw.filter((p) => mensCollectionIds.has(String(p.id)))
-    : raw.filter((p) => isMensProduct(p, config));
+  // ── Independent gender assertion (alarm, non-blocking) ───────────────────────
+  // Even the deterministic collection gate trusts the brand to keep its women's collection
+  // complete. "2XS" sizing is a validated women's-only signal for this catalog (0/111 men's
+  // numeric-waist bottoms and 0/61 men's college-licensed items carry it). If any 2XS product
+  // survives the gate, the women's collection missed it — flag loudly so we catch the
+  // collection-trust failure mode. Does not block; the count is the alarm.
+  if (config.excludeCollectionHandles && config.excludeCollectionHandles.length > 0) {
+    const survivors2xs = genderFiltered.filter((p) =>
+      p.options?.some(
+        (o) => /size/i.test(o.name) && o.values?.some((v) => v.trim().toLowerCase() === "2xs")
+      )
+    );
+    if (survivors2xs.length > 0) {
+      console.warn(
+        `[GENDER ASSERTION] ${config.brandKey}: ${survivors2xs.length} products with 2XS sizing ` +
+          `survived the collection gate — women's collection may be incomplete. Samples: ` +
+          survivors2xs.slice(0, 8).map((p) => p.title).join(" | ")
+      );
+    }
+  }
 
   // Global non-apparel exclusion — catches accessories and non-apparel that slip through gender filters.
   // Notes on specific keywords:

@@ -41,6 +41,12 @@ export interface BrandConfig {
    *  Replaces isMensProduct() for this brand — the collection is the sole gender filter.
    *  Use for brands with no gender tags whose /products.json mixes men's, women's, and youth. */
   mensCollectionHandle?: string;
+  /** DETERMINISTIC EXCLUSION gate: men's = flat catalog MINUS the union of these collections'
+   *  product IDs. Use when the brand has no gender field but exposes working women's/youth
+   *  collection endpoints (and its men's collection endpoint is broken/absent). Takes precedence
+   *  over mensCollectionHandle and isMensProduct(). If any listed collection returns 0/non-200,
+   *  the scrape is SKIPPED (stale data beats leaked data) — see shopify.ts. */
+  excludeCollectionHandles?: string[];
   /** Which image position to use as the primary product image. Defaults to 0.
    *  Set when a brand puts flat-lays or close-crops first and model shots at a later index.
    *  Falls back to images[0] if the preferred index doesn't exist for a given product. */
@@ -347,15 +353,17 @@ export const BRANDS: BrandConfig[] = [
     displayName: "TravisMathew",
     domain: "travismathew.com",
 
-    // No gender tags in their catalog — /collections/mens was the authoritative gender filter.
-    // ⚠️ BROKEN (confirmed 2026-07-03): travismathew.com/collections/mens/products.json now
-    // returns HTTP 500, and collection-level products.json is disabled site-wide for this brand
-    // (mens-all/men/shop-mens all return empty). So mensCollectionHandle resolves to 0 IDs and
-    // the scraper falls back to the isMensProduct() heuristic (now hardened with youth + women's
-    // product_type exclusions). Left configured ON PURPOSE so the "[SCRAPE WARNING]" in
-    // shopify.ts keeps firing as a signal the endpoint is still broken — remove only once a
-    // working men's collection handle is found or collection products.json is re-enabled.
-    mensCollectionHandle: "mens",
+    // No gender tags in their catalog. /collections/mens/products.json is DEAD (HTTP 500,
+    // confirmed 2026-07-03 and re-confirmed 2026-07-08) — so it is intentionally NOT used for
+    // inclusion. Instead we gate deterministically by EXCLUSION: the site's own women's and youth
+    // collection endpoints work — /collections/women/products.json (281) and
+    // /collections/boys/products.json (72) both return 200 — so men's = flat catalog − those IDs.
+    // Validated 2026-07-08: /collections/women covers 100% of the independent 2XS women's signal
+    // (233/233) incl. both screenshot products, with 0 men's false positives. This supersedes the
+    // dd7055d youth-title / women's-product_type heuristics for this brand. (Collection endpoints
+    // break independently — women/boys are up while mens is down; the gate self-guards, see
+    // shopify.ts skip-and-warn.)
+    excludeCollectionHandles: ["women", "boys"],
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "dress", "romper", "skort", "jumpsuit"],
     colorOptionNames: ["Color"],
