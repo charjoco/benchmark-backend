@@ -116,32 +116,136 @@ async function fetchCollectionProductIds(domain: string, handle: string): Promis
   return ids;
 }
 
-// Fetch all collection handles for a brand via /collections.json (paginated). Used to
-// resolve licensedCollectionPatterns → concrete handles at scrape time.
-async function fetchAllCollectionHandles(domain: string): Promise<string[]> {
-  const handles: string[] = [];
-  let page = 1;
-  while (true) {
-    const url = `https://${domain}/collections.json?limit=250&page=${page}`;
+// \u2500\u2500 Exclusion-critical sub-fetches (FAIL CLOSED) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// The gender/licensed collection fetches decide what gets EXCLUDED from the catalog.
+// If one silently returns empty on a transient error (TravisMathew 429s hard), zero
+// products get excluded, they survive into validMensExternalIds, and the stale-prune
+// keeps them \u2014 licensed college/pro gear leaks into a men's app while the scrape still
+// reports "success". So every exclusion-critical fetch MUST fail closed: any transient
+// failure (429 / 5xx / timeout / network) is retried with spaced backoff, then \u2014 if still
+// failing \u2014 THROWN, aborting the brand's scrape *before* the prune so the existing catalog
+// is left untouched. A 404 is treated as "collection absent" (empty), NOT a transient
+// failure. New exclusion-critical fetches must route through these helpers so they inherit
+// fail-closed by default (do not read collection IDs for exclusion via the best-effort
+// fetchCollectionProductIds, which fails open and is only safe for non-critical new/sale flags).
+//
+// DESIGNATED FALLBACK (NOT built now): if a brand's exclusion fetch keeps failing even after
+// retries, reuse the last successful exclusion-ID set from cache with a loud "using cached
+// exclusions from <date>" log rather than aborting every cron. Only build this if retries
+// prove insufficient in practice.
+class ExclusionFetchError extends Error {
+  constructor(public brandKey: string, public handle: string, public status: number | null) {
+    super(
+      `[SCRAPE ABORT] ${brandKey}: exclusion-critical fetch of '${handle}' failed ` +
+        `(status=${status ?? "network/timeout"}) after retries \u2014 aborting scrape to avoid ` +
+        `leaking un-excluded products; existing catalog left UNCHANGED until the endpoint recovers.`
+    );
+    this.name = "ExclusionFetchError";
+  }
+}
+
+// Spaced, escalating backoff \u2014 seconds, not a tight loop. TravisMathew rate-limits hard, and
+// hammering risks a WAF block (the Peter Millar / Incapsula scenario) on a live brand.
+const EXCLUSION_FETCH_RETRY_DELAYS_MS = [2000, 5000, 12000];
+const SHOPIFY_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+
+// One collection page, fail-closed. Returns null on 404 (collection absent \u2192 caller treats as
+// empty). Throws ExclusionFetchError on transient failure (429/5xx/timeout/network) after retries.
+async function fetchExclusionCollectionPage(
+  brandKey: string,
+  domain: string,
+  handle: string,
+  page: number,
+  limit: number
+): Promise<ShopifyProduct[] | null> {
+  const url = `https://${domain}/collections/${handle}/products.json?limit=${limit}&page=${page}`;
+  let lastStatus: number | null = null;
+  for (let attempt = 0; attempt <= EXCLUSION_FETCH_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      const backoff = EXCLUSION_FETCH_RETRY_DELAYS_MS[attempt - 1];
+      console.warn(
+        `[${brandKey}] exclusion fetch '${handle}' p${page}: retry ${attempt}/${EXCLUSION_FETCH_RETRY_DELAYS_MS.length} ` +
+          `in ${backoff / 1000}s (last status=${lastStatus ?? "network/timeout"})`
+      );
+      await delay(backoff);
+    }
     try {
-      const res = await axios.get<{ collections?: { handle: string }[] }>(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
+      const res = await axios.get<ShopifyResponse>(url, {
+        headers: { "User-Agent": SHOPIFY_UA, Accept: "application/json" },
         timeout: 20000,
       });
-      const cols = res.data?.collections;
-      if (!cols || cols.length === 0) break;
-      for (const c of cols) handles.push(c.handle);
-      if (cols.length < 250) break;
-      page++;
-      await delay(400, 400);
-    } catch (err) {
-      console.warn(`[${domain}] /collections.json fetch failed:`, err instanceof Error ? err.message : err);
+      return res.data?.products ?? [];
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        lastStatus = err.response?.status ?? null;
+        if (lastStatus === 404) return null; // collection absent \u2014 not a transient failure
+      } else {
+        lastStatus = null;
+      }
+      // 429 / 5xx / timeout / network \u2192 fall through and retry
+    }
+  }
+  throw new ExclusionFetchError(brandKey, handle, lastStatus);
+}
+
+// Fail-closed collection-ID fetch for exclusion gates (gender collections, licensed handles).
+async function fetchExclusionCollectionIds(
+  brandKey: string,
+  domain: string,
+  handle: string
+): Promise<Set<string>> {
+  const ids = new Set<string>();
+  const limit = 250;
+  for (let page = 1; ; page++) {
+    const products = await fetchExclusionCollectionPage(brandKey, domain, handle, page, limit);
+    if (products === null) {
+      console.warn(`[${brandKey}] exclusion collection '${handle}' returned 404 \u2014 treated as absent (0 IDs)`);
       break;
     }
+    if (products.length === 0) break;
+    for (const p of products) ids.add(String(p.id));
+    if (products.length < limit) break;
+    await delay(400, 400);
+  }
+  return ids;
+}
+
+// Fail-closed variant of fetchAllCollectionHandles for licensedCollectionPatterns resolution.
+async function fetchExclusionCollectionHandles(brandKey: string, domain: string): Promise<string[]> {
+  const handles: string[] = [];
+  const limit = 250;
+  for (let page = 1; ; page++) {
+    const url = `https://${domain}/collections.json?limit=${limit}&page=${page}`;
+    let cols: { handle: string }[] | null = null;
+    let lastStatus: number | null = null;
+    for (let attempt = 0; attempt <= EXCLUSION_FETCH_RETRY_DELAYS_MS.length; attempt++) {
+      if (attempt > 0) await delay(EXCLUSION_FETCH_RETRY_DELAYS_MS[attempt - 1]);
+      try {
+        const res = await axios.get<{ collections?: { handle: string }[] }>(url, {
+          headers: { "User-Agent": SHOPIFY_UA, Accept: "application/json" },
+          timeout: 20000,
+        });
+        cols = res.data?.collections ?? [];
+        break;
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          lastStatus = err.response?.status ?? null;
+          if (lastStatus === 404) {
+            cols = [];
+            break;
+          }
+        } else {
+          lastStatus = null;
+        }
+        // 429 / 5xx / timeout / network \u2192 retry
+      }
+    }
+    if (cols === null) throw new ExclusionFetchError(brandKey, "collections.json (licensed patterns)", lastStatus);
+    if (cols.length === 0) break;
+    for (const c of cols) handles.push(c.handle);
+    if (cols.length < limit) break;
+    await delay(400, 400);
   }
   return handles;
 }
@@ -525,7 +629,9 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   let mensCollectionIds = new Set<string>();
   if (config.mensCollectionHandle) {
     console.log(`[${config.displayName}] Fetching mens collection: ${config.mensCollectionHandle}`);
-    mensCollectionIds = await fetchCollectionProductIds(config.domain, config.mensCollectionHandle);
+    // Exclusion-critical (inclusion gate): a transient failure here aborts (fail closed) rather
+    // than silently falling back to the heuristic gate. A 404/empty still falls back below.
+    mensCollectionIds = await fetchExclusionCollectionIds(config.brandKey, config.domain, config.mensCollectionHandle);
     console.log(`[${config.displayName}] ${mensCollectionIds.size} products in mens collection`);
   }
 
@@ -542,7 +648,9 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     const excludeIds = new Set<string>();
     let gateFailed = false;
     for (const handle of config.excludeCollectionHandles) {
-      const ids = await fetchCollectionProductIds(config.domain, handle);
+      // Fail closed: a transient failure throws (aborts before prune); a 404/200-empty returns 0
+      // IDs and is caught by the gateFailed check below (deterministic gate can't be trusted).
+      const ids = await fetchExclusionCollectionIds(config.brandKey, config.domain, handle);
       console.log(`[${config.displayName}] exclusion collection '${handle}': ${ids.size} IDs`);
       if (ids.size === 0) {
         console.warn(
@@ -707,7 +815,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   // patterns (e.g. greyson's ~30 nfl-<team>-apparel-collection) so new team collections are
   // caught automatically without enumerating literals.
   if (config.licensedCollectionPatterns && config.licensedCollectionPatterns.length > 0) {
-    const allHandles = await fetchAllCollectionHandles(config.domain);
+    const allHandles = await fetchExclusionCollectionHandles(config.brandKey, config.domain);
     const regexes = config.licensedCollectionPatterns.map((p) => new RegExp(p, "i"));
     const matched = allHandles.filter((h) => regexes.some((r) => r.test(h)));
     console.log(`[${config.displayName}] licensed patterns matched ${matched.length} collection handles`);
@@ -716,7 +824,10 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   if (licensedHandles.length > 0) {
     const licensedIds = new Set<string>();
     for (const handle of licensedHandles) {
-      const ids = await fetchCollectionProductIds(config.domain, handle);
+      // Fail closed: this is the TravisMathew collegiate-collection fetch. A 429/timeout here used
+      // to return empty → zero exclusions → USC/LSU leaked while the scrape reported success. Now
+      // it retries with backoff and throws (aborts the brand's scrape) if still failing.
+      const ids = await fetchExclusionCollectionIds(config.brandKey, config.domain, handle);
       console.log(`[${config.displayName}] licensed collection '${handle}': ${ids.size} products`);
       for (const id of ids) licensedIds.add(id);
     }
