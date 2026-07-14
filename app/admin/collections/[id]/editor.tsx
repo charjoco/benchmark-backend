@@ -2,16 +2,32 @@
 
 import { useState, useTransition, useRef } from "react";
 import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import {
   updateCollectionMeta,
   setCollectionActive,
   deleteCollection,
   setCollectionHeroImage,
   removeCollectionHeroImage,
+  reorderCollectionProducts,
+  addProductToCollection,
 } from "../actions";
 import { slugify } from "../utils";
 import { ProductFinder } from "./product-finder";
 import { CollectionContents } from "./collection-contents";
+import { ProductTile } from "./product-tile";
 import { PreviewModal } from "./preview-modal";
+import { C, FONT_SANS } from "./theme";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,16 +105,65 @@ export function CollectionEditor({
   }
 
   function handleProductAdded(product: EditorProduct) {
-    const newCp: EditorCollectionProduct = {
-      productId: product.id,
-      position: collection.products.length,
-      addedAt: new Date().toISOString(),
-      product,
-    };
-    setCollection((prev) => ({
-      ...prev,
-      products: [...prev.products, newCp],
-    }));
+    setCollection((prev) => {
+      if (prev.products.some((cp) => cp.productId === product.id)) return prev;
+      return {
+        ...prev,
+        products: [
+          ...prev.products,
+          { productId: product.id, position: prev.products.length, addedAt: new Date().toISOString(), product },
+        ],
+      };
+    });
+  }
+
+  // ── Single DndContext (lifted here) drives both finder→collection ADD-by-drag
+  //    and in-collection reorder, so one drag layer spans both grids.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const [activeProduct, setActiveProduct] = useState<EditorProduct | null>(null);
+  const [activeType, setActiveType] = useState<"finder" | "collection" | null>(null);
+
+  function handleDragStart(e: DragStartEvent) {
+    const d = e.active.data.current as { type?: "finder" | "collection"; product?: EditorProduct } | undefined;
+    setActiveProduct(d?.product ?? null);
+    setActiveType(d?.type ?? null);
+  }
+
+  async function handleDragEnd(e: DragEndEvent) {
+    const active = e.active.data.current as { type?: string; product?: EditorProduct } | undefined;
+    const overData = e.over?.data.current as { type?: string } | undefined;
+    setActiveProduct(null);
+    setActiveType(null);
+    if (!active) return;
+
+    // Finder → collection : ADD (dropped on the collection grid or any collection tile)
+    if (active.type === "finder" && active.product) {
+      const droppedOnCollection = !!e.over && (e.over.id === "collection-drop" || overData?.type === "collection");
+      if (!droppedOnCollection) return;
+      const p = active.product;
+      if (collection.products.some((cp) => cp.productId === p.id)) return;
+      handleProductAdded(p); // optimistic
+      const res = await addProductToCollection(collection.id, p.id);
+      if (res.error) {
+        setCollection((prev) => ({ ...prev, products: prev.products.filter((cp) => cp.productId !== p.id) }));
+      }
+      return;
+    }
+
+    // In-collection reorder
+    if (active.type === "collection") {
+      const overId = e.over?.id;
+      if (!overId || overId === e.active.id || overData?.type !== "collection") return;
+      const oldIndex = collection.products.findIndex((cp) => cp.productId === e.active.id);
+      const newIndex = collection.products.findIndex((cp) => cp.productId === overId);
+      if (oldIndex < 0 || newIndex < 0) return;
+      const reordered = arrayMove(collection.products, oldIndex, newIndex).map((cp, i) => ({ ...cp, position: i }));
+      setCollection((prev) => ({ ...prev, products: reordered }));
+      await reorderCollectionProducts(collection.id, reordered.map((cp) => cp.productId));
+    }
   }
 
   const canPreview = collection.products.length > 0;
@@ -106,12 +171,12 @@ export function CollectionEditor({
   return (
     <div
       style={{
-        fontFamily: "monospace",
-        backgroundColor: "#0a0a0a",
+        fontFamily: FONT_SANS,
+        backgroundColor: C.bg,
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        color: "#e4e4e7",
+        color: C.text,
         overflow: "hidden",
       }}
     >
@@ -123,28 +188,28 @@ export function CollectionEditor({
           justifyContent: "space-between",
           padding: "0 24px",
           height: 52,
-          borderBottom: "1px solid #27272a",
+          borderBottom: `1px solid ${C.border}`,
           flexShrink: 0,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <a
             href="/admin/collections"
-            style={{ color: "#52525b", fontSize: 12, textDecoration: "none" }}
+            style={{ color: C.faint, fontSize: 12, textDecoration: "none" }}
           >
             ← Collections
           </a>
-          <span style={{ color: "#27272a" }}>/</span>
-          <span style={{ fontSize: 13, color: "#a1a1aa" }}>{collection.name}</span>
+          <span style={{ color: C.border }}>/</span>
+          <span style={{ fontSize: 13, color: C.text2 }}>{collection.name}</span>
           <span
             style={{
               padding: "2px 8px",
               borderRadius: 99,
               fontSize: 9,
-              fontWeight: "bold",
+              fontWeight: 700,
               letterSpacing: 1,
-              backgroundColor: collection.isActive ? "#14532d" : "#27272a",
-              color: collection.isActive ? "#4ade80" : "#71717a",
+              backgroundColor: collection.isActive ? C.activeGreenBg : C.border,
+              color: collection.isActive ? C.activeGreen : C.muted,
             }}
           >
             {collection.isActive ? "ACTIVE" : "DRAFT"}
@@ -158,13 +223,13 @@ export function CollectionEditor({
           style={{
             backgroundColor: "transparent",
             border: "1px solid",
-            borderColor: canPreview ? "#3f3f46" : "#1c1c1e",
+            borderColor: canPreview ? C.borderStrong : C.border,
             borderRadius: 4,
             padding: "6px 14px",
             fontSize: 11,
-            fontFamily: "monospace",
+            fontFamily: FONT_SANS,
             letterSpacing: 1,
-            color: canPreview ? "#a1a1aa" : "#3f3f46",
+            color: canPreview ? C.text2 : C.faintest,
             cursor: canPreview ? "pointer" : "not-allowed",
           }}
         >
@@ -174,49 +239,54 @@ export function CollectionEditor({
 
       {/* ── Three panels ── */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Left: Product finder */}
-        <div
-          style={{
-            width: 320,
-            borderRight: "1px solid #27272a",
-            padding: 16,
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         >
-          <p
+          {/* Left: Product finder (visual grid) */}
+          <div
             style={{
-              fontSize: 11,
-              letterSpacing: 1,
-              color: "#52525b",
-              margin: "0 0 12px",
+              flex: "1.4 1 0",
+              minWidth: 320,
+              borderRight: `1px solid ${C.border}`,
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            PRODUCT FINDER
-          </p>
-          <ProductFinder
-            collectionId={collection.id}
-            collectionProducts={collection.products}
-            brands={brands}
-            onProductAdded={handleProductAdded}
-          />
-        </div>
+            <p style={{ fontSize: 11, letterSpacing: 1.5, color: C.faint, margin: "0 0 12px" }}>
+              PRODUCT FINDER
+            </p>
+            <ProductFinder
+              collectionId={collection.id}
+              collectionProducts={collection.products}
+              brands={brands}
+              onProductAdded={handleProductAdded}
+            />
+          </div>
 
-        {/* Middle: Collection contents */}
-        <div
-          style={{
-            flex: 1,
-            borderRight: "1px solid #27272a",
-            overflowY: "auto",
-            padding: 24,
-          }}
-        >
-          <CollectionContents collection={collection} onUpdate={onCollectionUpdate} />
-        </div>
+          {/* Middle: Collection grid */}
+          <div style={{ flex: "1 1 0", minWidth: 300, borderRight: `1px solid ${C.border}`, overflow: "hidden", padding: 24 }}>
+            <CollectionContents collection={collection} onUpdate={onCollectionUpdate} />
+          </div>
 
-        {/* Right: Metadata */}
+          {/* Drag preview */}
+          <DragOverlay dropAnimation={null}>
+            {activeProduct ? (
+              <div style={{ width: 168, cursor: "grabbing" }}>
+                <ProductTile
+                  product={activeProduct}
+                  variant={activeType === "collection" ? "collection" : "finder"}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        {/* Right: Metadata rail (persistent — hero preview stays visible while arranging) */}
         <MetadataPanel
           collection={collection}
           currentUserId={currentUserId}
@@ -348,13 +418,13 @@ function MetadataPanel({
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    backgroundColor: "#18181b",
-    border: "1px solid #27272a",
-    borderRadius: 4,
+    backgroundColor: C.raised,
+    border: `1px solid ${C.border}`,
+    borderRadius: 5,
     padding: "8px 10px",
-    color: "#f4f4f5",
+    color: C.text,
     fontSize: 13,
-    fontFamily: "monospace",
+    fontFamily: FONT_SANS,
     boxSizing: "border-box",
     outline: "none",
   };
@@ -362,7 +432,7 @@ function MetadataPanel({
   const labelStyle: React.CSSProperties = {
     fontSize: 10,
     letterSpacing: 1,
-    color: "#71717a",
+    color: C.muted,
     display: "block",
     marginBottom: 5,
   };
@@ -371,15 +441,17 @@ function MetadataPanel({
     <div
       style={{
         width: 300,
+        flexShrink: 0,
         overflowY: "auto",
         padding: 24,
-        flexShrink: 0,
         display: "flex",
         flexDirection: "column",
         gap: 20,
+        fontFamily: FONT_SANS,
+        backgroundColor: C.panel,
       }}
     >
-      <p style={{ fontSize: 11, letterSpacing: 1, color: "#52525b", margin: 0 }}>
+      <p style={{ fontSize: 11, letterSpacing: 1.5, color: C.faint, margin: 0 }}>
         METADATA
       </p>
 
@@ -393,9 +465,9 @@ function MetadataPanel({
               style={{
                 backgroundColor: "transparent",
                 border: "none",
-                color: "#71717a",
+                color: C.muted,
                 fontSize: 10,
-                fontFamily: "monospace",
+                fontFamily: FONT_SANS,
                 cursor: "pointer",
                 padding: 0,
                 letterSpacing: 0.5,
@@ -406,13 +478,13 @@ function MetadataPanel({
           )}
         </div>
 
-        {/* Image preview */}
+        {/* Image preview — live hero (custom upload → hero product → none) */}
         <div
           style={{
             width: "100%",
             aspectRatio: "4/3",
-            backgroundColor: "#111113",
-            border: "1px solid #27272a",
+            backgroundColor: C.card,
+            border: `1px solid ${C.border}`,
             borderRadius: 6,
             overflow: "hidden",
             display: "flex",
@@ -438,17 +510,17 @@ function MetadataPanel({
               />
             </>
           ) : (
-            <span style={{ fontSize: 11, color: "#3f3f46" }}>No hero set</span>
+            <span style={{ fontSize: 11, color: C.faintest }}>No hero set</span>
           )}
         </div>
 
         {/* Source label */}
         {collection.heroImageUrl ? (
-          <p style={{ fontSize: 10, color: "#52525b", margin: "0 0 8px" }}>
+          <p style={{ fontSize: 10, color: C.faint, margin: "0 0 8px" }}>
             Custom image
           </p>
         ) : collection.heroProduct ? (
-          <p style={{ fontSize: 10, color: "#52525b", margin: "0 0 8px" }}>
+          <p style={{ fontSize: 10, color: C.faint, margin: "0 0 8px" }}>
             From product: {collection.heroProduct.title}
           </p>
         ) : null}
@@ -471,19 +543,19 @@ function MetadataPanel({
             width: "100%",
             padding: "7px 10px",
             backgroundColor: "transparent",
-            border: "1px solid #27272a",
-            borderRadius: 4,
-            fontFamily: "monospace",
+            border: `1px solid ${C.border}`,
+            borderRadius: 5,
+            fontFamily: FONT_SANS,
             fontSize: 10,
             letterSpacing: 1,
-            color: heroUploading ? "#52525b" : "#a1a1aa",
+            color: heroUploading ? C.faint : C.text2,
             cursor: heroUploading ? "wait" : "pointer",
           }}
         >
           {heroUploading ? "UPLOADING…" : collection.heroImageUrl ? "REPLACE IMAGE" : "UPLOAD CUSTOM IMAGE"}
         </button>
         {heroUploadError && (
-          <p style={{ fontSize: 11, color: "#f87171", margin: "6px 0 0" }}>
+          <p style={{ fontSize: 11, color: C.danger, margin: "6px 0 0" }}>
             {heroUploadError}
           </p>
         )}
@@ -498,30 +570,30 @@ function MetadataPanel({
           style={{
             width: "100%",
             padding: "9px 12px",
-            borderRadius: 4,
+            borderRadius: 5,
             border: "1px solid",
-            fontFamily: "monospace",
+            fontFamily: FONT_SANS,
             fontSize: 11,
-            fontWeight: "bold",
+            fontWeight: 700,
             letterSpacing: 1.5,
             cursor: isPending ? "wait" : "pointer",
-            backgroundColor: collection.isActive ? "#14532d" : "#1c1c1e",
-            borderColor: collection.isActive ? "#166534" : "#27272a",
-            color: collection.isActive ? "#4ade80" : "#a1a1aa",
+            backgroundColor: collection.isActive ? C.activeGreenBg : C.raised,
+            borderColor: collection.isActive ? "#166534" : C.border,
+            color: collection.isActive ? C.activeGreen : C.text2,
             transition: "all 0.15s",
           }}
         >
           {isPending ? "..." : collection.isActive ? "● ACTIVE" : "○ DRAFT"}
         </button>
         {activeError && (
-          <p style={{ fontSize: 11, color: "#f87171", marginTop: 6, margin: "6px 0 0" }}>
+          <p style={{ fontSize: 11, color: C.danger, marginTop: 6, margin: "6px 0 0" }}>
             {activeError}
           </p>
         )}
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, backgroundColor: "#1c1c1e" }} />
+      <div style={{ height: 1, backgroundColor: C.border }} />
 
       {/* Name */}
       <div>
@@ -545,7 +617,7 @@ function MetadataPanel({
           style={inputStyle}
           placeholder="url-slug"
         />
-        <p style={{ fontSize: 10, color: "#3f3f46", marginTop: 4, margin: "4px 0 0" }}>
+        <p style={{ fontSize: 10, color: C.faintest, marginTop: 4, margin: "4px 0 0" }}>
           /collections/{slug || "…"}
         </p>
       </div>
@@ -570,13 +642,13 @@ function MetadataPanel({
           style={{
             width: "100%",
             padding: "10px 12px",
-            backgroundColor: saving ? "#27272a" : "#f4f4f5",
-            color: saving ? "#71717a" : "#09090b",
+            backgroundColor: saving ? C.border : C.text,
+            color: saving ? C.muted : C.bg,
             border: "none",
-            borderRadius: 4,
-            fontFamily: "monospace",
+            borderRadius: 5,
+            fontFamily: FONT_SANS,
             fontSize: 11,
-            fontWeight: "bold",
+            fontWeight: 700,
             letterSpacing: 1.5,
             cursor: saving ? "wait" : "pointer",
           }}
@@ -584,19 +656,19 @@ function MetadataPanel({
           {saving ? "SAVING…" : saveSuccess ? "SAVED ✓" : "SAVE"}
         </button>
         {saveError && (
-          <p style={{ fontSize: 11, color: "#f87171", marginTop: 6, margin: "6px 0 0" }}>
+          <p style={{ fontSize: 11, color: C.danger, marginTop: 6, margin: "6px 0 0" }}>
             {saveError}
           </p>
         )}
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, backgroundColor: "#1c1c1e" }} />
+      <div style={{ height: 1, backgroundColor: C.border }} />
 
       {/* Last edited */}
       <div>
         <label style={labelStyle}>LAST EDITED</label>
-        <p style={{ fontSize: 12, color: "#71717a", margin: 0 }}>
+        <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
           {timeAgo(collection.lastEditedAt)} by{" "}
           {resolveDisplayName(collection.lastEditedBy, currentUserId, editorNames)}
         </p>
@@ -611,12 +683,12 @@ function MetadataPanel({
               width: "100%",
               padding: "8px 12px",
               backgroundColor: "transparent",
-              border: "1px solid #27272a",
-              borderRadius: 4,
-              fontFamily: "monospace",
+              border: `1px solid ${C.border}`,
+              borderRadius: 5,
+              fontFamily: FONT_SANS,
               fontSize: 11,
               letterSpacing: 1,
-              color: "#52525b",
+              color: C.faint,
               cursor: "pointer",
             }}
           >
@@ -643,10 +715,10 @@ function MetadataPanel({
                   padding: "8px 0",
                   backgroundColor: "#dc2626",
                   border: "none",
-                  borderRadius: 4,
-                  fontFamily: "monospace",
+                  borderRadius: 5,
+                  fontFamily: FONT_SANS,
                   fontSize: 11,
-                  fontWeight: "bold",
+                  fontWeight: 700,
                   color: "#fff",
                   cursor: deleting ? "wait" : "pointer",
                 }}
@@ -659,11 +731,11 @@ function MetadataPanel({
                   flex: 1,
                   padding: "8px 0",
                   backgroundColor: "transparent",
-                  border: "1px solid #27272a",
-                  borderRadius: 4,
-                  fontFamily: "monospace",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 5,
+                  fontFamily: FONT_SANS,
                   fontSize: 11,
-                  color: "#71717a",
+                  color: C.muted,
                   cursor: "pointer",
                 }}
               >

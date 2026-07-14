@@ -1,33 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable";
+import { SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  removeProductFromCollection,
-  setCollectionHero,
-  reorderCollectionProducts,
-} from "../actions";
+import { removeProductFromCollection, setCollectionHero } from "../actions";
+import { ProductTile } from "./product-tile";
+import { C, FONT_SANS } from "./theme";
 import type { EditorCollectionProduct, EditorCollection } from "./editor";
 
-// ── Sortable item ─────────────────────────────────────────────────────────────
+// ── Sortable collection tile (grid) ───────────────────────────────────────────
+// Reorder is handled by the single DndContext lifted to editor.tsx (so finder tiles
+// can be dragged in). This component only renders the SortableContext + droppable grid.
 
-function SortableProduct({
+function SortableTile({
   cp,
   isHero,
   collectionId,
@@ -40,143 +26,42 @@ function SortableProduct({
   onRemove: (productId: string) => void;
   onSetHero: (productId: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: cp.productId });
-
-  const [removing, setRemoving] = useState(false);
-  const [settingHero, setSettingHero] = useState(false);
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "10px 12px",
-    backgroundColor: "#111113",
-    borderRadius: 6,
-    border: isHero ? "1px solid #713f12" : "1px solid transparent",
-    userSelect: "none",
-  };
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: cp.productId,
+    data: { type: "collection", product: cp.product },
+  });
+  const [busy, setBusy] = useState(false);
 
   async function handleRemove() {
-    setRemoving(true);
+    setBusy(true);
     await removeProductFromCollection(collectionId, cp.productId);
     onRemove(cp.productId);
-    // If remove redirects or revalidates, this might not run
-    setRemoving(false);
   }
-
   async function handleSetHero() {
     if (isHero) return;
-    setSettingHero(true);
+    setBusy(true);
     await setCollectionHero(collectionId, cp.productId);
     onSetHero(cp.productId);
-    setSettingHero(false);
+    setBusy(false);
   }
 
   return (
-    <div ref={setNodeRef} style={style}>
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        style={{
-          flexShrink: 0,
-          cursor: isDragging ? "grabbing" : "grab",
-          color: "#3f3f46",
-          fontSize: 14,
-          lineHeight: 1,
-          padding: "0 2px",
-        }}
-        title="Drag to reorder"
-      >
-        ⠿
-      </div>
-
-      {/* Image */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={cp.product.imageUrl}
-        alt={cp.product.title}
-        style={{
-          width: 44,
-          height: 44,
-          objectFit: "cover",
-          borderRadius: 4,
-          flexShrink: 0,
-        }}
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: busy ? 0.5 : 1 }}
+    >
+      <ProductTile
+        product={cp.product}
+        variant="collection"
+        isHero={isHero}
+        isDragging={isDragging}
+        onRemove={handleRemove}
+        onSetHero={handleSetHero}
+        dragHandleProps={{ ...attributes, ...listeners }}
       />
-
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 12,
-            color: "#f4f4f5",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {cp.product.title}
-        </div>
-        <div style={{ fontSize: 10, color: "#71717a" }}>
-          {cp.product.brand} · ${cp.product.price.toFixed(0)}
-        </div>
-      </div>
-
-      {/* Hero toggle */}
-      <button
-        onClick={handleSetHero}
-        disabled={isHero || settingHero}
-        title={isHero ? "Hero" : "Set as hero"}
-        style={{
-          flexShrink: 0,
-          padding: "4px 8px",
-          backgroundColor: isHero ? "#2d2006" : "transparent",
-          border: "1px solid",
-          borderColor: isHero ? "#713f12" : "#27272a",
-          borderRadius: 4,
-          fontSize: 10,
-          fontFamily: "monospace",
-          letterSpacing: 0.5,
-          color: isHero ? "#ca8a04" : "#3f3f46",
-          cursor: isHero ? "default" : settingHero ? "wait" : "pointer",
-        }}
-      >
-        {isHero ? "HERO" : settingHero ? "…" : "HERO"}
-      </button>
-
-      {/* Remove */}
-      <button
-        onClick={handleRemove}
-        disabled={removing}
-        title="Remove from collection"
-        style={{
-          flexShrink: 0,
-          width: 24,
-          height: 24,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "transparent",
-          border: "1px solid #27272a",
-          borderRadius: 4,
-          fontSize: 12,
-          color: removing ? "#3f3f46" : "#71717a",
-          cursor: removing ? "wait" : "pointer",
-          padding: 0,
-        }}
-      >
-        ×
-      </button>
     </div>
   );
 }
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 export function CollectionContents({
   collection,
@@ -185,105 +70,79 @@ export function CollectionContents({
   collection: EditorCollection;
   onUpdate: (patch: Partial<EditorCollection>) => void;
 }) {
-  const [items, setItems] = useState<EditorCollectionProduct[]>(collection.products);
-  const [reordering, setReordering] = useState(false);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Keep in sync when parent adds a product
-  if (items.length !== collection.products.length) {
-    setItems(collection.products);
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = items.findIndex((cp) => cp.productId === active.id);
-    const newIndex = items.findIndex((cp) => cp.productId === over.id);
-    const reordered = arrayMove(items, oldIndex, newIndex);
-
-    // Optimistic update
-    setItems(reordered);
-    onUpdate({ products: reordered });
-
-    setReordering(true);
-    await reorderCollectionProducts(
-      collection.id,
-      reordered.map((cp) => cp.productId)
-    );
-    setReordering(false);
-  }
+  const { setNodeRef, isOver } = useDroppable({ id: "collection-drop" });
 
   function handleRemove(productId: string) {
-    const updated = items
-      .filter((cp) => cp.productId !== productId)
-      .map((cp, i) => ({ ...cp, position: i }));
-    setItems(updated);
-    const heroProductId =
-      collection.heroProductId === productId ? null : collection.heroProductId;
-    onUpdate({ products: updated, heroProductId });
+    onUpdate({
+      products: collection.products
+        .filter((cp) => cp.productId !== productId)
+        .map((cp, i) => ({ ...cp, position: i })),
+      ...(collection.heroProductId === productId && { heroProductId: null, heroProduct: null }),
+    });
   }
 
   function handleSetHero(productId: string) {
-    onUpdate({ heroProductId: productId });
+    const cp = collection.products.find((p) => p.productId === productId);
+    onUpdate({
+      heroProductId: productId,
+      heroProduct: cp
+        ? { id: cp.product.id, title: cp.product.title, imageUrl: cp.product.imageUrl }
+        : collection.heroProduct,
+    });
   }
 
+  const ids = collection.products.map((cp) => cp.productId);
+  const empty = collection.products.length === 0;
+
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-      >
-        <p style={{ fontSize: 11, letterSpacing: 1, color: "#52525b", margin: 0 }}>
-          COLLECTION · {items.length} / 15
-        </p>
-        {reordering && (
-          <span style={{ fontSize: 10, color: "#52525b" }}>Saving order…</span>
-        )}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: FONT_SANS }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
+        <p style={{ fontSize: 11, letterSpacing: 1.5, color: C.faint, margin: 0 }}>COLLECTION</p>
+        <span style={{ fontSize: 11, color: C.muted }}>
+          {collection.products.length} {collection.products.length === 1 ? "item" : "items"}
+        </span>
       </div>
 
-      {items.length === 0 ? (
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "#111113",
-            border: "1px dashed #27272a",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#3f3f46",
-            fontSize: 12,
-          }}
-        >
-          No products yet — add some from the finder
-        </div>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={items.map((cp) => cp.productId)}
-            strategy={verticalListSortingStrategy}
+      <div
+        ref={setNodeRef}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          borderRadius: 8,
+          border: `1px ${empty ? "dashed" : "solid"} ${isOver ? C.text2 : C.border}`,
+          padding: empty ? 0 : 12,
+          backgroundColor: isOver ? "rgba(244,244,245,0.04)" : "transparent",
+          transition: "border-color 120ms, background-color 120ms",
+        }}
+      >
+        {empty ? (
+          <div
+            style={{
+              height: "100%",
+              minHeight: 240,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              textAlign: "center",
+              padding: 24,
+            }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
-              {items.map((cp) => (
-                <SortableProduct
+            <span style={{ fontSize: 26, color: C.faintest }}>⊕</span>
+            <p style={{ fontSize: 13, color: C.text2, margin: 0 }}>Drag products here</p>
+            <p style={{ fontSize: 11, color: C.faint, margin: 0 }}>
+              or click <span style={{ color: C.gold, fontWeight: 700 }}>+ ADD</span> on any product in the finder
+            </p>
+          </div>
+        ) : (
+          <SortableContext items={ids} strategy={rectSortingStrategy}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+              {collection.products.map((cp) => (
+                <SortableTile
                   key={cp.productId}
                   cp={cp}
-                  isHero={cp.productId === collection.heroProductId}
+                  isHero={collection.heroProductId === cp.productId}
                   collectionId={collection.id}
                   onRemove={handleRemove}
                   onSetHero={handleSetHero}
@@ -291,19 +150,12 @@ export function CollectionContents({
               ))}
             </div>
           </SortableContext>
-        </DndContext>
-      )}
+        )}
+      </div>
 
-      {items.length > 0 && (
-        <p
-          style={{
-            fontSize: 10,
-            color: "#3f3f46",
-            marginTop: 12,
-            marginBottom: 0,
-          }}
-        >
-          Drag to reorder · Click HERO to set the cover image
+      {!empty && (
+        <p style={{ fontSize: 10, color: C.faintest, marginTop: 12, marginBottom: 0 }}>
+          Drag to reorder · click a product image to set the hero
         </p>
       )}
     </div>
