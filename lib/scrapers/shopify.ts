@@ -2,6 +2,7 @@ import axios from "axios";
 import { prisma } from "@/lib/prisma";
 import { extractColorBucket, logUnmappedColor } from "@/lib/normalize/color";
 import { resolveCategory, isExcludedProductType } from "@/lib/normalize/category";
+import { curationExclusionReason, isRecognizedApparelType, isNonApparelProductType } from "@/lib/normalize/exclusions";
 import { resolveAppColor } from "@/lib/normalize/colors/resolver";
 import type { AppColor } from "@/lib/normalize/colors/canonical";
 import { isWomensProductImage, classifyCategoryViaVision } from "@/lib/normalize/vision";
@@ -113,6 +114,36 @@ async function fetchCollectionProductIds(domain: string, handle: string): Promis
   }
 
   return ids;
+}
+
+// Fetch all collection handles for a brand via /collections.json (paginated). Used to
+// resolve licensedCollectionPatterns → concrete handles at scrape time.
+async function fetchAllCollectionHandles(domain: string): Promise<string[]> {
+  const handles: string[] = [];
+  let page = 1;
+  while (true) {
+    const url = `https://${domain}/collections.json?limit=250&page=${page}`;
+    try {
+      const res = await axios.get<{ collections?: { handle: string }[] }>(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
+        timeout: 20000,
+      });
+      const cols = res.data?.collections;
+      if (!cols || cols.length === 0) break;
+      for (const c of cols) handles.push(c.handle);
+      if (cols.length < 250) break;
+      page++;
+      await delay(400, 400);
+    } catch (err) {
+      console.warn(`[${domain}] /collections.json fetch failed:`, err instanceof Error ? err.message : err);
+      break;
+    }
+  }
+  return handles;
 }
 
 function normalizeStr(s: string): string {
@@ -592,6 +623,45 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   );
   console.log(`[${config.displayName}] ${nonApparelFiltered.length} after men's filter`);
 
+  // ── Shared curation exclusions (v1 = curated men's APPAREL only) ─────────────
+  // Runs at the menProducts stage so excluded products drop out of validMensExternalIds
+  // below → grandfathered accessory rows (categorized before an exclusion existed) get
+  // PRUNED by the stale-cleanup on this scrape, not just skipped. Removes: non-apparel
+  // product_types (hats/belts/bags/…), miscategorized accessories by title, and licensed
+  // college/pro product_types (NCAA/MLB/NFL/NHL — e.g. johnnie-o).
+  const curationCounts = { "non-apparel-type": 0, "accessory-title": 0, "licensed-sports-type": 0 } as Record<string, number>;
+  const apparelFiltered = nonApparelFiltered.filter((p) => {
+    const reason = curationExclusionReason(p.product_type, p.title);
+    if (reason) {
+      curationCounts[reason]++;
+      return false;
+    }
+    return true;
+  });
+  console.log(
+    `[${config.displayName}] curation-excluded: non-apparel-type=${curationCounts["non-apparel-type"]} ` +
+      `accessory-title=${curationCounts["accessory-title"]} licensed-sports-type=${curationCounts["licensed-sports-type"]} ` +
+      `→ ${apparelFiltered.length} apparel`
+  );
+
+  // NEW-TYPE TRIPWIRE: surface product_types that are neither recognized apparel nor a known
+  // accessory (the "neither" bucket that defaults to KEEP). Logging them once per scrape means
+  // a novel accessory type a brand invents shows up in logs, not in a walkthrough — same intent
+  // as UnknownColor logging.
+  const unrecognizedTypes = new Set<string>();
+  for (const p of apparelFiltered) {
+    if (p.product_type && !isRecognizedApparelType(p.product_type) && !isNonApparelProductType(p.product_type)) {
+      unrecognizedTypes.add(p.product_type);
+    }
+  }
+  if (unrecognizedTypes.size > 0) {
+    console.log(
+      `[CURATION TRIPWIRE] ${config.brandKey}: ${unrecognizedTypes.size} kept product_type(s) not recognized as ` +
+        `apparel or accessory (defaulting to KEEP — review if any are novel accessories): ` +
+        [...unrecognizedTypes].slice(0, 40).join(" | ")
+    );
+  }
+
   // Filter out licensed sports products using two complementary signals:
   //
   // PRIMARY: game-day Shopify collection membership (config.licensedSportsHandle).
@@ -625,14 +695,35 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     return [false, ""];
   }
 
-  let menProducts = nonApparelFiltered;
-  if (config.licensedSportsHandle) {
-    const licensedIds = await fetchCollectionProductIds(config.domain, config.licensedSportsHandle);
-    console.log(`[${config.displayName}] ${licensedIds.size} products in licensed sports collection`);
+  let menProducts = apparelFiltered;
+  // Licensed-collection exclusion. licensedSportsHandle stays for the game-day + PGA-carve-out
+  // logic; licensedCollectionHandles adds any number of further licensed collections (e.g. TM's
+  // "collegiate-collection"). Their union of member IDs is excluded (PGA carve-out still wins).
+  const licensedHandles = [
+    ...(config.licensedSportsHandle ? [config.licensedSportsHandle] : []),
+    ...(config.licensedCollectionHandles ?? []),
+  ];
+  // Pattern-matched licensed collections: resolve /collections.json handles against the regex
+  // patterns (e.g. greyson's ~30 nfl-<team>-apparel-collection) so new team collections are
+  // caught automatically without enumerating literals.
+  if (config.licensedCollectionPatterns && config.licensedCollectionPatterns.length > 0) {
+    const allHandles = await fetchAllCollectionHandles(config.domain);
+    const regexes = config.licensedCollectionPatterns.map((p) => new RegExp(p, "i"));
+    const matched = allHandles.filter((h) => regexes.some((r) => r.test(h)));
+    console.log(`[${config.displayName}] licensed patterns matched ${matched.length} collection handles`);
+    for (const h of matched) if (!licensedHandles.includes(h)) licensedHandles.push(h);
+  }
+  if (licensedHandles.length > 0) {
+    const licensedIds = new Set<string>();
+    for (const handle of licensedHandles) {
+      const ids = await fetchCollectionProductIds(config.domain, handle);
+      console.log(`[${config.displayName}] licensed collection '${handle}': ${ids.size} products`);
+      for (const id of ids) licensedIds.add(id);
+    }
     const before = menProducts.length;
-    menProducts = nonApparelFiltered.filter((p) => {
+    menProducts = apparelFiltered.filter((p) => {
       if (PGA_CARVE_OUT.test(p.handle)) return true;        // PGA exemption always wins
-      if (licensedIds.has(String(p.id))) return false;       // in game-day collection → exclude
+      if (licensedIds.has(String(p.id))) return false;       // in a licensed collection → exclude
       const [matched, label] = matchesLicensedLine(p.handle, p.title);
       if (matched) {
         console.log(`[${config.displayName}] excluded by licensed-line rule: ${p.handle} (matched: ${label})`);
@@ -640,7 +731,7 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       }
       return true;
     });
-    console.log(`[${config.displayName}] ${before - menProducts.length} licensed sports products excluded`);
+    console.log(`[${config.displayName}] ${before - menProducts.length} licensed sports/college products excluded`);
   }
 
   // Paige: collapse per-inseam duplicates to one product per colorway.
@@ -716,7 +807,12 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
       // on subsequent scrapes. Run scripts/preview-tm-mlb-cleanup.ts (or
       // equivalent) after deploying a new exclusion to clear the back catalog.
       if (isExcludedProductType(config.brandKey, product.product_type, product.tags, product.title)) {
-        console.log(`[scraper/categorize/${config.brandKey}] excluded productType "${product.product_type}"`);
+        // NOTE: this only skips CATEGORIZATION of not-yet-categorized items; it does not
+        // remove anything from serving. Serve-level exclusion is now handled earlier by the
+        // shared curation filter (apparelFiltered), which drops excluded products before
+        // validMensExternalIds so grandfathered rows get pruned. Renamed from the old
+        // "excluded productType" line, which misleadingly implied it stopped serving.
+        console.log(`[scraper/categorize/${config.brandKey}] skipped categorization (brand exclusion) for productType "${product.product_type}"`);
         skipped++;
         continue;
       }
@@ -748,6 +844,11 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
           category = result.category;
           console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision → ${category}`);
         } else if (result.reason === "inconclusive") {
+          // LOUD: this product passed the curation gate (it's meant to be apparel) but resolved
+          // to NULL category. NULL rows are never served (API filters category:{not:null}), so a
+          // legit apparel item landing here is a categorization BUG we want surfaced, not a silent
+          // accessory. If this fires on real apparel, fix the brand's category rules.
+          console.warn(`[CATEGORY NULL] ${config.brandKey}: "${product.title}" (type="${product.product_type}") resolved NULL category after rules+vision — apparel item will NOT serve until categorized. Investigate if this is real apparel.`);
           console.log(`[scraper/categorize] ${config.displayName} "${product.title}" — vision inconclusive (${result.detail ?? "—"}), saving stub row`);
           const stubDomain = config.websiteDomain ?? config.domain;
           await prisma.product.upsert({

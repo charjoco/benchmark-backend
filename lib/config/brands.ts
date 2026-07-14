@@ -37,6 +37,15 @@ export interface BrandConfig {
    *  Supports a PGA carve-out: products whose handle contains pga/ryder-cup/usopen/etc. are preserved even if
    *  they appear in the licensed collection. */
   licensedSportsHandle?: string;
+  /** Additional licensed college/pro collection handles to exclude (union with licensedSportsHandle).
+   *  Use for brands whose licensing lives in a collection rather than product_type — e.g. TravisMathew's
+   *  "collegiate-collection". Same PGA carve-out applies. */
+  licensedCollectionHandles?: string[];
+  /** Regex (as strings) matched against the brand's /collections.json handles at scrape time; every
+   *  matching collection is treated as licensed and excluded. Use when licensing spans many patterned
+   *  handles rather than a fixed few — e.g. greyson's ~30 `nfl-<team>-apparel-collection`. Union with
+   *  licensedCollectionHandles/licensedSportsHandle; same PGA carve-out. */
+  licensedCollectionPatterns?: string[];
   /** When set, only products whose Shopify ID appears in this collection are processed.
    *  Replaces isMensProduct() for this brand — the collection is the sole gender filter.
    *  Use for brands with no gender tags whose /products.json mixes men's, women's, and youth. */
@@ -244,6 +253,8 @@ export const BRANDS: BrandConfig[] = [
     newArrivalsHandle: "mens-new-arrivals",
     saleHandle: "mens-sale",
     popularHandle: "mens-best-sellers",
+    // Licensed college gear lives in collections (confirmed 2026-07-14).
+    licensedCollectionHandles: ["faherty-collegiate-tailgate-collection", "faherty-x-college-of-charleston-collection"],
     // Product types use "Men's" prefix (e.g. "Men's Outerwear", "Men's Shorts")
     categoryMappings: {
       jackets: { productTypes: ["Men's Outerwear"], titleContains: ["jacket", "coat", "anorak", "windbreaker", "parka", "bomber", "shell", "cpo"] },
@@ -383,6 +394,10 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "men-clothing-new-arrivals",
     saleHandle: "mens-sale",
+    // Licensed NFL/MLB gear lives in ~30 patterned collections (nfl-<team>-apparel-collection,
+    // mlb-*, greyson-for-the-mlb) — confirmed 2026-07-14. Pattern-matched vs enumerated so new
+    // team collections are caught automatically (fail closed as NFL season rosters change).
+    licensedCollectionPatterns: ["^nfl-.*-apparel-collection$", "^mlb-", "^greyson-for-the-mlb$"],
     categoryMappings: {}, // Greyson categorization is owned by lib/brands/greyson/categories.ts
   },
   {
@@ -396,6 +411,9 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     licensedSportsHandle: "game-day",
+    // College licensing lives in a collection (not product_type) for TM — validated 2026-07-09:
+    // /collections/collegiate-collection = 154 products (USC/LSU/Alabama/UCLA/etc.).
+    licensedCollectionHandles: ["collegiate-collection"],
     categoryMappings: {}, // Johnnie-O categorization is owned by lib/brands/johnnie-o/categories.ts
   },
   {
