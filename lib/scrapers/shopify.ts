@@ -250,6 +250,113 @@ async function fetchExclusionCollectionHandles(brandKey: string, domain: string)
   return handles;
 }
 
+// Persist a successful live exclusion fetch so a later datacenter-IP 404/empty can fall back to it.
+async function upsertExclusionCache(brand: string, handle: string, ids: string[], source: string): Promise<void> {
+  try {
+    await prisma.exclusionCache.upsert({
+      where: { brand_handle: { brand, handle } },
+      create: { brand, handle, ids, source },
+      update: { ids, source, fetchedAt: new Date() },
+    });
+  } catch (err) {
+    // A cache-write failure must not break a scrape that already has live IDs.
+    console.warn(`[${brand}] failed to update exclusion cache for '${handle}': ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+// Cache-backed exclusion resolver \u2014 the uniform posture for ALL configured exclusion collections
+// (gender excludeCollectionHandles, licensed handles, pattern-resolved licensed handles):
+//   live fetch >0 IDs            \u2192 use it AND refresh the cache
+//   live 0/404/empty/error, cache present  \u2192 use the cache (a cache proves the handle WAS populated,
+//                                  so a sudden 0 is a soft failure \u2014 recover, don't run ungated)
+//   no cache + transient error   \u2192 [SCRAPE ABORT] (fail closed; don't scrape without a gate we know exists)
+//   no cache + genuine 0/404     \u2192 contribute 0 and PROCEED (collection is absent / since-removed \u2014
+//                                  e.g. faherty's licensed collections now 404; aborting there would
+//                                  needlessly take the brand down every scrape)
+async function resolveExclusionCollectionIds(brandKey: string, domain: string, handle: string): Promise<Set<string>> {
+  let liveReason = "";
+  let transient = false;
+  try {
+    const ids = await fetchExclusionCollectionIds(brandKey, domain, handle);
+    if (ids.size > 0) {
+      await upsertExclusionCache(brandKey, handle, [...ids], "live");
+      return ids;
+    }
+    liveReason = "0 IDs (404 / 200-empty)";
+  } catch (err) {
+    transient = true;
+    liveReason =
+      err instanceof ExclusionFetchError
+        ? `transient error (status=${err.status ?? "network/timeout"})`
+        : err instanceof Error
+          ? err.message
+          : "error";
+  }
+
+  const cached = await prisma.exclusionCache.findUnique({ where: { brand_handle: { brand: brandKey, handle } } });
+  if (cached && cached.ids.length > 0) {
+    console.warn(
+      `[${brandKey}] using CACHED exclusions for '${handle}' from ${cached.fetchedAt.toISOString()} ` +
+        `(${cached.ids.length} IDs, source=${cached.source}) \u2014 live fetch returned ${liveReason}`
+    );
+    return new Set(cached.ids);
+  }
+
+  if (transient) {
+    console.error(
+      `[SCRAPE ABORT] ${brandKey}: exclusion '${handle}' had a ${liveReason} and no cache is present. ` +
+        `Aborting rather than scraping without a gate we know exists.`
+    );
+    throw new ExclusionFetchError(brandKey, handle, null);
+  }
+
+  // Genuine 404 / empty with no cache \u2192 the collection is absent or was removed. Contribute nothing.
+  console.warn(`[${brandKey}] exclusion '${handle}' returned ${liveReason} with no cache \u2014 treating as absent (0 IDs).`);
+  return new Set();
+}
+
+// Same cache posture for licensedCollectionPatterns DISCOVERY (the /collections.json step that
+// resolves regex patterns \u2192 concrete handles, e.g. greyson's nfl-<team> collections). If discovery
+// goes dark (404/empty/error) we reuse the cached matched-handle list rather than silently matching
+// nothing; no cache + failure \u2192 abort. (0 matched from a healthy index is legitimate, not cached.)
+async function resolveLicensedPatternHandles(brandKey: string, domain: string, patterns: string[]): Promise<string[]> {
+  const regexes = patterns.map((p) => new RegExp(p, "i"));
+  let allHandles: string[] | null = null;
+  let transient = false;
+  let reason = "";
+  try {
+    const fetched = await fetchExclusionCollectionHandles(brandKey, domain);
+    if (fetched.length === 0) reason = "collections.json empty/404";
+    else allHandles = fetched;
+  } catch (err) {
+    transient = true;
+    reason = err instanceof ExclusionFetchError ? `transient error (status=${err.status ?? "network/timeout"})` : err instanceof Error ? err.message : "error";
+  }
+
+  if (allHandles) {
+    const matched = allHandles.filter((h) => regexes.some((r) => r.test(h)));
+    if (matched.length > 0) await upsertExclusionCache(brandKey, "__licensed_patterns__", matched, "live");
+    return matched;
+  }
+
+  const cached = await prisma.exclusionCache.findUnique({ where: { brand_handle: { brand: brandKey, handle: "__licensed_patterns__" } } });
+  if (cached && cached.ids.length > 0) {
+    console.warn(
+      `[${brandKey}] using CACHED licensed-pattern handles from ${cached.fetchedAt.toISOString()} ` +
+        `(${cached.ids.length} handles) \u2014 pattern discovery returned ${reason}`
+    );
+    return cached.ids;
+  }
+
+  if (transient) {
+    console.error(`[SCRAPE ABORT] ${brandKey}: licensed-pattern discovery had a ${reason} and no cache is present. Aborting.`);
+    throw new ExclusionFetchError(brandKey, "__licensed_patterns__", null);
+  }
+
+  console.warn(`[${brandKey}] licensed-pattern discovery returned ${reason} with no cache \u2014 treating as no licensed collections.`);
+  return [];
+}
+
 function normalizeStr(s: string): string {
   return s.toLowerCase().trim().replace(/\u2019/g, "'");
 }
@@ -646,33 +753,13 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
     // the union of the listed collections' product IDs. Uses the site's own working women's/youth
     // collection endpoints instead of the dead /collections/mens. Each fetch paginates fully.
     const excludeIds = new Set<string>();
-    let gateFailed = false;
     for (const handle of config.excludeCollectionHandles) {
-      // Fail closed: a transient failure throws (aborts before prune); a 404/200-empty returns 0
-      // IDs and is caught by the gateFailed check below (deterministic gate can't be trusted).
-      const ids = await fetchExclusionCollectionIds(config.brandKey, config.domain, handle);
+      // Cache-backed & fail closed: live >0 refreshes the cache; a datacenter-IP 404/empty falls
+      // back to the cached women's/youth set; no cache + failure throws [SCRAPE ABORT], leaving the
+      // catalog UNCHANGED rather than dumping ungated women's/youth into a men's app.
+      const ids = await resolveExclusionCollectionIds(config.brandKey, config.domain, handle);
       console.log(`[${config.displayName}] exclusion collection '${handle}': ${ids.size} IDs`);
-      if (ids.size === 0) {
-        console.warn(
-          `[SCRAPE WARNING] ${config.brandKey}: exclusion collection '${handle}' returned 0 IDs ` +
-            `(non-200 or empty) — the deterministic gender/age gate is INCOMPLETE.`
-        );
-        gateFailed = true;
-      }
       for (const id of ids) excludeIds.add(id);
-    }
-
-    if (gateFailed) {
-      // FAIL CASE — skip-and-warn. If a women's/youth collection endpoint breaks (as /mens
-      // already did), we must NOT fall through to an ungated catalog, which would dump women's
-      // and youth into a men's app. Stale data beats leaked data: abort this brand's scrape and
-      // leave existing rows untouched until the endpoint recovers.
-      console.error(
-        `[SCRAPE ABORT] ${config.brandKey}: exclusion gate failed — a women's/youth collection ` +
-          `returned 0/non-200 IDs. Skipping scrape; existing catalog left UNCHANGED to avoid ` +
-          `leaking ungated women's/youth products.`
-      );
-      return { found: raw.length, upserted: 0, skipped: raw.length };
     }
 
     genderFiltered = raw.filter((p) => !excludeIds.has(String(p.id)));
@@ -815,19 +902,17 @@ export async function scrapeShopifyBrand(config: BrandConfig): Promise<{
   // patterns (e.g. greyson's ~30 nfl-<team>-apparel-collection) so new team collections are
   // caught automatically without enumerating literals.
   if (config.licensedCollectionPatterns && config.licensedCollectionPatterns.length > 0) {
-    const allHandles = await fetchExclusionCollectionHandles(config.brandKey, config.domain);
-    const regexes = config.licensedCollectionPatterns.map((p) => new RegExp(p, "i"));
-    const matched = allHandles.filter((h) => regexes.some((r) => r.test(h)));
+    const matched = await resolveLicensedPatternHandles(config.brandKey, config.domain, config.licensedCollectionPatterns);
     console.log(`[${config.displayName}] licensed patterns matched ${matched.length} collection handles`);
     for (const h of matched) if (!licensedHandles.includes(h)) licensedHandles.push(h);
   }
   if (licensedHandles.length > 0) {
     const licensedIds = new Set<string>();
     for (const handle of licensedHandles) {
-      // Fail closed: this is the TravisMathew collegiate-collection fetch. A 429/timeout here used
-      // to return empty → zero exclusions → USC/LSU leaked while the scrape reported success. Now
-      // it retries with backoff and throws (aborts the brand's scrape) if still failing.
-      const ids = await fetchExclusionCollectionIds(config.brandKey, config.domain, handle);
+      // Cache-backed & fail closed. This is the TravisMathew collegiate-collection fetch: Shopify
+      // serves it as 404/empty to Railway's datacenter IP, so the live fetch returns 0 and we fall
+      // back to the seeded cache (fetched from an IP that gets 200). No cache + failure → abort.
+      const ids = await resolveExclusionCollectionIds(config.brandKey, config.domain, handle);
       console.log(`[${config.displayName}] licensed collection '${handle}': ${ids.size} products`);
       for (const id of ids) licensedIds.add(id);
     }

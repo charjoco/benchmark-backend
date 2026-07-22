@@ -77,6 +77,21 @@ model UnknownColor {
   @@index([resolved])
 }
 
+// Cached exclusion ID sets per brand+collection. Written whenever a live exclusion fetch
+// succeeds with >0 IDs; read as a fail-safe fallback when the live fetch 404s/empties/errors
+// (e.g. Shopify serving collegiate-collection as 404 to datacenter IPs). A configured,
+// known-populated exclusion collection returning 0 must never silently mean "no exclusions".
+model ExclusionCache {
+  id        String   @id @default(cuid())
+  brand     String
+  handle    String
+  ids       String[]
+  source    String   // "live" | "seed"
+  fetchedAt DateTime @default(now())
+
+  @@unique([brand, handle])
+}
+
 model ScrapeLog {
   id            String    @id @default(cuid())
   brand         String
