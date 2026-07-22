@@ -375,6 +375,10 @@ export const BRANDS: BrandConfig[] = [
     // break independently — women/boys are up while mens is down; the gate self-guards, see
     // shopify.ts skip-and-warn.)
     excludeCollectionHandles: ["women", "boys"],
+    // College licensing lives in a collection (not product_type) — validated 2026-07-09:
+    // travismathew.com/collections/collegiate-collection = 154 products (USC/LSU/Alabama/UCLA/etc.).
+    // (Previously misfiled under johnnie-o, so TM never excluded it and ~96 licensed items leaked.)
+    licensedCollectionHandles: ["collegiate-collection"],
     mensInclusionTags: [],
     womensExclusionTags: ["women", "womens", "women's", "dress", "romper", "skort", "jumpsuit"],
     colorOptionNames: ["Color"],
@@ -411,9 +415,6 @@ export const BRANDS: BrandConfig[] = [
     colorOptionNames: ["Color"],
     newArrivalsHandle: "mens-new-arrivals",
     licensedSportsHandle: "game-day",
-    // College licensing lives in a collection (not product_type) for TM — validated 2026-07-09:
-    // /collections/collegiate-collection = 154 products (USC/LSU/Alabama/UCLA/etc.).
-    licensedCollectionHandles: ["collegiate-collection"],
     categoryMappings: {}, // Johnnie-O categorization is owned by lib/brands/johnnie-o/categories.ts
   },
   {
