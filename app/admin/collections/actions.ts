@@ -3,16 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { assertAdmin } from "@/lib/adminAuth";
 import { slugify } from "./utils";
-
-async function getCurrentUserId(): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
-}
 
 async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
   const root = base || "collection";
@@ -29,7 +21,7 @@ async function ensureUniqueSlug(base: string, excludeId?: string): Promise<strin
 // ── Create ──────────────────────────────────────────────────────────────────
 
 export async function createCollection() {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
   const slug = await ensureUniqueSlug(slugify("New Collection"));
 
   const collection = await prisma.collection.create({
@@ -45,7 +37,7 @@ export async function updateCollectionMeta(
   id: string,
   data: { name: string; slug: string; description: string }
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   const trimmedSlug = data.slug.trim();
   const trimmedName = data.name.trim() || "Untitled Collection";
@@ -79,7 +71,7 @@ export async function setCollectionActive(
   id: string,
   active: boolean
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   if (active) {
     const activeCount = await prisma.collection.count({
@@ -109,7 +101,7 @@ export async function addProductToCollection(
   collectionId: string,
   productId: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   const count = await prisma.collectionProduct.count({ where: { collectionId } });
   if (count >= 15) {
@@ -133,7 +125,7 @@ export async function removeProductFromCollection(
   collectionId: string,
   productId: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await prisma.collectionProduct.delete({
     where: { collectionId_productId: { collectionId, productId } },
@@ -172,7 +164,7 @@ export async function setCollectionHero(
   collectionId: string,
   productId: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   const member = await prisma.collectionProduct.findUnique({
     where: { collectionId_productId: { collectionId, productId } },
@@ -194,7 +186,7 @@ export async function reorderCollectionProducts(
   collectionId: string,
   orderedProductIds: string[]
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await Promise.all(
     orderedProductIds.map((productId, position) =>
@@ -220,7 +212,7 @@ export async function setCollectionHeroImage(
   id: string,
   url: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
   await prisma.collection.update({
     where: { id },
     data: { heroImageUrl: url, lastEditedBy: userId },
@@ -232,7 +224,7 @@ export async function setCollectionHeroImage(
 export async function removeCollectionHeroImage(
   id: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
   await prisma.collection.update({
     where: { id },
     data: { heroImageUrl: null, lastEditedBy: userId },
@@ -244,6 +236,7 @@ export async function removeCollectionHeroImage(
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 export async function deleteCollection(id: string) {
+  await assertAdmin();
   await prisma.collection.delete({ where: { id } });
   revalidatePath("/admin/collections");
   redirect("/admin/collections");

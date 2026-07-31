@@ -4,8 +4,10 @@ import { runAllScrapers, runSingleBrand } from "@/lib/scrapers";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  // Fail CLOSED: a missing SCRAPE_SECRET must reject, not wave everything through (matches
+  // /api/cleanup). An unset env var must never turn this mutation endpoint into an open door.
   const secret = req.headers.get("x-scrape-secret");
-  if (process.env.SCRAPE_SECRET && secret !== process.env.SCRAPE_SECRET) {
+  if (!process.env.SCRAPE_SECRET || secret !== process.env.SCRAPE_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

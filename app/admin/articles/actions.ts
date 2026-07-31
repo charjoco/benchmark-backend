@@ -3,20 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-async function getCurrentUserId(): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
-}
+import { assertAdmin } from "@/lib/adminAuth";
 
 // ── Create ────────────────────────────────────────────────────────────────────
 
 export async function createArticle() {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   const article = await prisma.article.create({
     data: { title: "New Article", lastEditedBy: userId },
@@ -31,7 +23,7 @@ export async function saveArticle(
   id: string,
   data: { title: string; subtitle: string; body: string }
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await prisma.article.update({
     where: { id },
@@ -54,7 +46,7 @@ export async function updateArticleMeta(
   id: string,
   data: { title: string; subtitle: string }
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await prisma.article.update({
     where: { id },
@@ -76,7 +68,7 @@ export async function updateArticleBody(
   id: string,
   body: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await prisma.article.update({
     where: { id },
@@ -93,7 +85,7 @@ export async function setArticleActive(
   id: string,
   active: boolean
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   // publishedAt is set on first activation only — never overwritten on subsequent toggles
   const existing = await prisma.article.findUnique({
@@ -124,7 +116,7 @@ export async function addImageToArticle(
   image?: { id: string; imageUrl: string; altText: string | null; position: number };
   error?: string;
 }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   const count = await prisma.articleImage.count({ where: { articleId } });
   if (count >= 3) {
@@ -154,6 +146,7 @@ export async function updateImageAltText(
   imageId: string,
   altText: string
 ): Promise<{ error?: string }> {
+  await assertAdmin();
   await prisma.articleImage.update({
     where: { id: imageId },
     data: { altText: altText.trim() || null },
@@ -165,7 +158,7 @@ export async function removeImageFromArticle(
   articleId: string,
   imageId: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await prisma.articleImage.delete({ where: { id: imageId } });
 
@@ -193,7 +186,7 @@ export async function reorderArticleImages(
   articleId: string,
   orderedImageIds: string[]
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await Promise.all(
     orderedImageIds.map((imageId, position) =>
@@ -216,7 +209,7 @@ export async function addProductToArticle(
   articleId: string,
   productId: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   const count = await prisma.articleProduct.count({ where: { articleId } });
   if (count >= 5) {
@@ -240,7 +233,7 @@ export async function removeProductFromArticle(
   articleId: string,
   productId: string
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await prisma.articleProduct.delete({
     where: { articleId_productId: { articleId, productId } },
@@ -270,7 +263,7 @@ export async function reorderArticleProducts(
   articleId: string,
   orderedProductIds: string[]
 ): Promise<{ error?: string }> {
-  const userId = await getCurrentUserId();
+  const userId = await assertAdmin();
 
   await Promise.all(
     orderedProductIds.map((productId, position) =>
@@ -293,6 +286,7 @@ export async function reorderArticleProducts(
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 export async function deleteArticle(id: string) {
+  await assertAdmin();
   await prisma.article.delete({ where: { id } });
   revalidatePath("/admin/articles");
   redirect("/admin/articles");
