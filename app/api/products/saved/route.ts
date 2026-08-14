@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { internalMarkerExclusions } from "@/lib/public-visibility";
 import type { SizeVariant, Colorway, Seller } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,13 @@ export async function GET(req: NextRequest) {
   if (pairs.length === 0) return NextResponse.json({ products: [] });
 
   const rawProducts = await prisma.product.findMany({
-    where: { OR: pairs.map((p) => ({ brand: p.brand, externalId: p.externalId })), category: { not: null } },
+    where: {
+      AND: [
+        { OR: pairs.map((p) => ({ brand: p.brand, externalId: p.externalId })) },
+        ...internalMarkerExclusions(),
+      ],
+      category: { not: null },
+    },
   });
 
   const products = rawProducts.map((p) => ({

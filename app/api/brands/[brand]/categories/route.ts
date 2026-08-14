@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { BRAND_KEYS } from "@/lib/config/brands";
+import { PUBLIC_PRODUCT_WHERE } from "@/lib/public-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function GET(
 
   const rows = await prisma.product.groupBy({
     by: ["category"],
-    where: { brand, inStock: true, category: { not: null } },
+    where: { ...PUBLIC_PRODUCT_WHERE, brand, inStock: true, category: { not: null } },
     _count: { category: true },
   });
 

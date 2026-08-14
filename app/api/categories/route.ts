@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_PRODUCT_WHERE } from "@/lib/public-visibility";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const rows = await prisma.product.groupBy({
     by: ["category"],
-    where: { inStock: true, category: { not: null } },
+    where: { ...PUBLIC_PRODUCT_WHERE, inStock: true, category: { not: null } },
     _count: { category: true },
   });
 

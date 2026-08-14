@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
+import { internalMarkerExclusions } from "@/lib/public-visibility";
 import type { SizeVariant, Colorway, Seller } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
   // where object individually: each is a bare `{ OR: [...] }`, so a later spread silently
   // overwrote an earlier one — a colour or size filter dropped the hide-sale clause entirely,
   // leaking sale items into the filtered default feed.
-  const andConditions: Prisma.ProductWhereInput[] = [];
+  const andConditions: Prisma.ProductWhereInput[] = [...internalMarkerExclusions()];
   if (hideSaleInDefaultFeed && !drops) andConditions.push({ OR: [{ onSale: false }, { isNew: true }] });
   if (colorFilter) andConditions.push(colorFilter);
   if (sizeFilter) andConditions.push(sizeFilter);

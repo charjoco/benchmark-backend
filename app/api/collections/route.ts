@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_PRODUCT_WHERE } from "@/lib/public-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,9 @@ export async function GET() {
       heroProduct: {
         select: { id: true, title: true, imageUrl: true },
       },
-      _count: { select: { products: true } },
+      // Count only what the detail endpoint will actually serve, so the tile's count can't
+      // promise more products than the collection page renders.
+      _count: { select: { products: { where: { product: PUBLIC_PRODUCT_WHERE } } } },
     },
   });
 

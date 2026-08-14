@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_PRODUCT_WHERE } from "@/lib/public-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export async function GET(
       description: true,
       heroImageUrl: true,
       products: {
+        // A curated collection must not surface an internally-marked product either.
+        where: { product: PUBLIC_PRODUCT_WHERE },
         orderBy: { position: "asc" },
         select: {
           position: true,
