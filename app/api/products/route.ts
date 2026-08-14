@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { internalMarkerExclusions } from "@/lib/public-visibility";
-import type { SizeVariant, Colorway, Seller } from "@/types";
+import { parseProducts } from "@/lib/product-serialize";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +12,10 @@ const ANCHOR_BRANDS = ["vuori", "rhone"];
 const ANCHOR_PER_PAGE = 32;
 const DISCOVERY_PER_PAGE = 16;
 
-type RawProduct = Awaited<ReturnType<typeof prisma.product.findMany>>[number];
-
-function parseProducts(raw: RawProduct[]) {
-  return raw.map((p) => ({
-    ...p,
-    sizes: JSON.parse(p.sizes) as SizeVariant[],
-    colorways: JSON.parse(p.colorways) as Colorway[],
-    sellers: JSON.parse(p.sellers) as Seller[],
-  }));
-}
+// B2 search. ILIKE on title/brand against an unindexed column, so keep queries bounded:
+// one character matches most of the catalog, and an unbounded string is a free scan.
+const MIN_QUERY_LENGTH = 2;
+const MAX_QUERY_LENGTH = 100;
 
 /** Interleave anchor and discovery results 2:1 */
 function interleave<T>(anchors: T[], discovery: T[]): T[] {
@@ -45,6 +39,8 @@ export async function GET(req: NextRequest) {
   const drops = searchParams.get("drops") === "true";
   const priceDrops = searchParams.get("priceDrops") === "true";
   const popular = searchParams.get("popular") === "true";
+  const rawQuery = (searchParams.get("q") || "").trim();
+  const q = rawQuery.length >= MIN_QUERY_LENGTH ? rawQuery.slice(0, MAX_QUERY_LENGTH) : undefined;
 
   // popular feed is no longer implemented — return empty immediately
   if (popular) {
@@ -86,7 +82,9 @@ export async function GET(req: NextRequest) {
 
   // Exclude sale items from default browsing — they only appear when user explicitly
   // filters for sale or browses the price-drops feed (limited supply items shouldn't crowd feed).
-  const hideSaleInDefaultFeed = !onSale && !priceDrops;
+  // A search is explicit intent rather than browsing, so it does not hide sale items: a user
+  // searching "commuter polo" wants the polo whether or not it happens to be discounted.
+  const hideSaleInDefaultFeed = !onSale && !priceDrops && !q;
 
   // Every OR-shaped condition goes through this AND list. They must NOT be spread into the
   // where object individually: each is a bare `{ OR: [...] }`, so a later spread silently
@@ -96,6 +94,14 @@ export async function GET(req: NextRequest) {
   if (hideSaleInDefaultFeed && !drops) andConditions.push({ OR: [{ onSale: false }, { isNew: true }] });
   if (colorFilter) andConditions.push(colorFilter);
   if (sizeFilter) andConditions.push(sizeFilter);
+  if (q) {
+    andConditions.push({
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { brand: { contains: q, mode: "insensitive" } },
+      ],
+    });
+  }
 
   const sharedWhere = {
     inStock: true,
@@ -119,10 +125,12 @@ export async function GET(req: NextRequest) {
 
   // Use interleaved anchor/discovery fetch only for the unfiltered default feed.
   // Any explicit brand selection or non-default sort bypasses boosting.
+  // A search bypasses boosting too: promoting Vuori and Rhone 2:1 inside search results would
+  // bury the matches the user explicitly asked for behind two anchor brands.
   const useBoost =
     brands.length === 0 &&
     sortBy === "lastSeenAt" &&
-    !drops && !priceDrops;
+    !drops && !priceDrops && !q;
 
   if (useBoost) {
     const anchorWhere = { ...sharedWhere, brand: { in: ANCHOR_BRANDS } };
