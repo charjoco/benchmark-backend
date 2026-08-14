@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/app/generated/prisma/client";
 import type { SizeVariant, Colorway, Seller } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -86,17 +87,23 @@ export async function GET(req: NextRequest) {
   // filters for sale or browses the price-drops feed (limited supply items shouldn't crowd feed).
   const hideSaleInDefaultFeed = !onSale && !priceDrops;
 
+  // Every OR-shaped condition goes through this AND list. They must NOT be spread into the
+  // where object individually: each is a bare `{ OR: [...] }`, so a later spread silently
+  // overwrote an earlier one — a colour or size filter dropped the hide-sale clause entirely,
+  // leaking sale items into the filtered default feed.
+  const andConditions: Prisma.ProductWhereInput[] = [];
+  if (hideSaleInDefaultFeed && !drops) andConditions.push({ OR: [{ onSale: false }, { isNew: true }] });
+  if (colorFilter) andConditions.push(colorFilter);
+  if (sizeFilter) andConditions.push(sizeFilter);
+
   const sharedWhere = {
     inStock: true,
     category: category ? category : { not: null },
     ...(onSale && { onSale: true }),
-    ...(hideSaleInDefaultFeed && !drops && { OR: [{ onSale: false }, { isNew: true }] }),
     ...(isNew && { isNew: true }),
     ...(drops && { firstSeenAt: { gte: new Date(Date.now() - 72 * 60 * 60 * 1000) } }),
     ...(priceDrops && { priceDroppedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
-    ...(colorFilter && sizeFilter
-      ? { AND: [colorFilter, sizeFilter] }
-      : colorFilter ?? sizeFilter ?? {}),
+    ...(andConditions.length > 0 && { AND: andConditions }),
     price: { gte: minPrice, lte: maxPrice },
   };
 
